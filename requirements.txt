@@ -1,0 +1,15 @@
+# Core pipeline (required) — these run the entire recoverable pipeline offline.
+httpx>=0.27
+PyYAML>=6.0
+Jinja2>=3.1
+python-docx>=1.1
+beautifulsoup4>=4.12
+lxml>=5.0
+
+# Optional — LLM-backed scoring & the Agent SDK loop.
+# The pipeline runs without these (a deterministic HeuristicScorer is the fallback).
+# anthropic>=0.40
+# claude-agent-sdk>=0.1
+
+# Dev / test
+# pytest>=8.0

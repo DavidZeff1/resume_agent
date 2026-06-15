@@ -1,0 +1,24 @@
+# Secrets & local config
+.env
+config.yaml
+
+# Local state (the agent's SQLite DB, caches, generated docs)
+data/
+*.sqlite3
+*.sqlite3-journal
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

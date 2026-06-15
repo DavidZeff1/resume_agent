@@ -1,0 +1,19 @@
+[PLACEHOLDER RESUME — BACKEND TRACK]
+
+Replace this file with your real backend-focused resume (.docx or .pdf
+recommended for actual applications). jobagent only *selects and attaches* this
+file — it never edits or generates resume content.
+
+[Your Name]
+[email] · [phone] · [GitHub] · [location]
+
+SUMMARY
+Backend engineer focused on [languages/frameworks], distributed systems, and
+API design.
+
+EXPERIENCE
+[Company] — [Title] ([dates])
+  - [accomplishment]
+
+SKILLS
+Python, SQL, REST/gRPC APIs, PostgreSQL, Docker, [cloud]

@@ -1,0 +1,14 @@
+[PLACEHOLDER RESUME — DATA SCIENTIST TRACK]
+
+Replace this file with your real data-science resume. jobagent only selects and
+attaches it.
+
+[Your Name]
+[email] · [phone] · [GitHub] · [location]
+
+SUMMARY
+Data scientist with experience in [ML/stats], experimentation, and turning
+data into product decisions.
+
+SKILLS
+Python, pandas, scikit-learn, SQL, experimentation/A-B testing, [deep learning]
