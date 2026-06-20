@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
+import os
 from pathlib import Path
 
 _CONFIGURED = False
@@ -28,13 +29,20 @@ def setup_logging(logs_dir: Path | None = None, level: str = "INFO") -> logging.
     stream.setFormatter(fmt)
     logger.addHandler(stream)
 
-    if logs_dir is not None:
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.handlers.RotatingFileHandler(
-            logs_dir / "jobagent.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8"
-        )
-        file_handler.setFormatter(fmt)
-        logger.addHandler(file_handler)
+    # On a serverless host (Vercel) the filesystem is ephemeral and logs are
+    # collected from stdout/stderr, so a rotating file handler is pointless I/O.
+    on_serverless = bool(os.environ.get("VERCEL"))
+    if logs_dir is not None and not on_serverless:
+        try:
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            file_handler = logging.handlers.RotatingFileHandler(
+                logs_dir / "jobagent.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8"
+            )
+            file_handler.setFormatter(fmt)
+            logger.addHandler(file_handler)
+        except OSError:
+            # Read-only filesystem: stderr logging still works; don't crash.
+            pass
 
     logger.propagate = False
     _CONFIGURED = True

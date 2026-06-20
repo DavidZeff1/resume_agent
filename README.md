@@ -75,7 +75,7 @@ only logs that *you* submitted, exactly like `jobagent review submit`.
 | Review queue | The human gate — each prepared application, one click from done |
 | Application detail | Cover letter, pre-filled data, the fields **you** must complete, and the apply link |
 | Profile | Edit the core facts + extra facts the agent may use |
-| Companies | Activate/deactivate watchlist entries |
+| Companies | Add / remove / activate / deactivate watchlist entries |
 
 ```bash
 jobagent web --port 8000          # default

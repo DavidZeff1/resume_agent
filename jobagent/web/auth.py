@@ -24,6 +24,12 @@ def auth_credentials() -> tuple[str, str] | None:
     return username, password
 
 
+# Paths reachable without credentials: a health probe and the favicon. The
+# health endpoint must be open so you can diagnose a deploy even if auth or the
+# DB is misconfigured.
+_OPEN_PATHS = frozenset({"/healthz", "/favicon.ico"})
+
+
 class BasicAuthMiddleware:
     """Pure-ASGI HTTP Basic auth guard."""
 
@@ -33,7 +39,7 @@ class BasicAuthMiddleware:
         self.password = password
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        if scope["type"] != "http" or scope.get("path") in _OPEN_PATHS:
             await self.app(scope, receive, send)
             return
 

@@ -57,19 +57,59 @@ def _connect_libsql(config: Config, db_url: str):
         import libsql_experimental as libsql  # type: ignore
     except ImportError as exc:  # pragma: no cover - only hit in the hosted path
         raise RuntimeError(
-            "JOBAGENT_DB_URL is set but 'libsql-experimental' is not installed. "
-            "Install it (pip install libsql-experimental) to use a remote "
-            "Turso/libSQL database."
+            "JOBAGENT_DB_URL is set but 'libsql-experimental' could not be "
+            "imported. On Vercel this almost always means the build used a "
+            "Python version with no prebuilt wheel — pin Python 3.12. Locally: "
+            "pip install libsql-experimental."
         ) from exc
 
     auth_token = os.environ.get("JOBAGENT_DB_AUTH_TOKEN")
+    if not auth_token:
+        # Turso databases are private; a missing token yields cryptic auth
+        # failures later, so fail loudly and early instead.
+        raise RuntimeError(
+            "JOBAGENT_DB_URL is set but JOBAGENT_DB_AUTH_TOKEN is missing. "
+            "Create one with: turso db tokens create <db>."
+        )
+
+    config.paths.data_dir.mkdir(parents=True, exist_ok=True)
     replica_path = str(config.paths.data_dir / "replica.db")
     raw = libsql.connect(replica_path, sync_url=db_url, auth_token=auth_token)
     try:
         raw.sync()  # pull the latest from the primary before serving reads
     except Exception:
+        # First-ever connect against an empty primary may have nothing to pull;
+        # init_db will create the schema locally and the replica forwards it.
         pass
     return _LibsqlConn(raw)
+
+
+def db_info(config: Config) -> dict:
+    """A connectivity self-check for the /healthz endpoint.
+
+    Reports which driver is active and whether a trivial query succeeds, without
+    raising — so the health page can render the error text instead of 500-ing.
+    """
+    import sys
+
+    using_libsql = bool(os.environ.get("JOBAGENT_DB_URL"))
+    info: dict = {
+        "driver": "libsql/turso" if using_libsql else "sqlite3 (local file)",
+        "python": sys.version.split()[0],
+        "data_dir": str(config.paths.data_dir),
+        "ephemeral": (not using_libsql) and str(config.paths.data_dir).startswith("/tmp"),
+        "ok": False,
+    }
+    try:
+        conn = get_conn(config)
+        try:
+            conn.execute("SELECT 1").fetchone()
+            info["ok"] = True
+        finally:
+            conn.close()
+    except Exception as exc:
+        info["error"] = f"{type(exc).__name__}: {exc}"
+    return info
 
 
 # --------------------------------------------------------------------------- #

@@ -8,7 +8,7 @@
   {% if jobs %}
     <table>
       <thead>
-        <tr><th>score</th><th>title</th><th>company</th><th>location</th><th>track</th><th>status</th><th></th></tr>
+        <tr><th>score</th><th>title</th><th>company</th><th>track</th><th>status</th><th>actions</th></tr>
       </thead>
       <tbody>
         {% for j in jobs %}
@@ -16,18 +16,29 @@
             <td>{{ m.score_badge(j.score) }}</td>
             <td>
               <strong>{{ j.title }}</strong>
-              {% if j.score_rationale %}<div class="note">{{ j.score_rationale }}</div>{% endif %}
+              <div class="note">{{ j.location or '—' }}{% if j.score_rationale %} · {{ j.score_rationale }}{% endif %}</div>
             </td>
             <td>{{ j.company }}</td>
-            <td class="muted">{{ j.location or '—' }}</td>
             <td>{{ j.suggested_track or '—' }}</td>
             <td>{{ m.status_badge(j.status) }}</td>
-            <td><a href="{{ j.url }}" target="_blank" rel="noopener">open ↗</a></td>
+            <td class="row" style="gap:6px">
+              <a class="btn ghost sm" href="{{ j.url }}" target="_blank" rel="noopener">open ↗</a>
+              {% if j.status not in ('queued_for_review', 'submitted', 'prepared') %}
+                <form class="inline" method="post" action="/jobs/{{ j.id }}/prepare">
+                  <button class="btn sm" type="submit" title="Shortlist + prepare this job">Prepare</button>
+                </form>
+              {% endif %}
+              {% if j.status not in ('skipped', 'submitted') %}
+                <form class="inline" method="post" action="/jobs/{{ j.id }}/skip">
+                  <button class="btn ghost sm" type="submit">Skip</button>
+                </form>
+              {% endif %}
+            </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   {% else %}
-    <div class="empty">No jobs yet — run the pipeline or seed demo data from the dashboard.</div>
+    <div class="empty">No jobs yet — run the pipeline or seed demo data from the dashboard, or add jobs by adding a company and running <code>jobagent run</code> locally.</div>
   {% endif %}
 {% endblock %}

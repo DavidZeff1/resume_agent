@@ -14,13 +14,22 @@ into this repo behind environment variables:
    gated. Setting `JOBAGENT_WEB_PASSWORD` turns on HTTP Basic auth.
 
 The local app and the CLI are unchanged: none of this activates unless the
-corresponding env var is set, and `python -m pytest` (42 tests) still passes.
+corresponding env var is set, and `python -m pytest` (49 tests) still passes.
 
-> ⚠️ **One thing I could not verify in this environment:** the `libsql-experimental`
-> driver needs a prebuilt wheel, which exists for Linux CPython 3.9–3.12 (what
-> Vercel runs) but not for the local sandbox's Python 3.14. The compatibility
-> shim around it (`jobagent/db.py`) was validated against stdlib sqlite3, but
-> the live Turso connection itself should be confirmed on your first deploy.
+**If anything goes wrong, the deploy tells you why** rather than showing an
+opaque 500:
+- **`/healthz`** (no login required) returns JSON with the active DB driver,
+  whether it connects, whether the HTML templates bundled correctly, the Python
+  version, and the data dir.
+- If the app fails to even start (a missing dependency, bad DB config), every
+  page returns the **actual Python traceback** as plain text — see
+  [Diagnostics](#diagnostics--troubleshooting).
+
+> ⚠️ **One piece I could not run in this sandbox:** the `libsql-experimental`
+> driver needs a prebuilt wheel — available for Linux CPython 3.9–3.12 (what
+> Vercel runs) but not the sandbox's Python 3.14. The compatibility shim around
+> it (`jobagent/db.py`) is unit-tested against stdlib sqlite3; the live Turso
+> connection should be confirmed on first deploy via `/healthz`.
 
 ---
 
@@ -28,9 +37,10 @@ corresponding env var is set, and `python -m pytest` (42 tests) still passes.
 
 | File | Purpose |
 |------|---------|
-| `api/index.py` | ASGI entrypoint Vercel serves (`app`) |
-| `vercel.json` | Routes every path to the function; `maxDuration` |
-| `requirements.txt` | Includes `starlette`, `python-multipart`, `libsql-experimental` |
+| `api/index.py` | ASGI entrypoint Vercel serves (`app`) + startup-failure diagnostic |
+| `vercel.json` | Explicit `builds` (Python) + `routes` (all paths → the app) + `includeFiles` |
+| `api/requirements.txt` | Deps next to the entrypoint, where `@vercel/python` installs from |
+| `requirements.txt` | Same deps at the root (belt-and-suspenders) |
 | `.vercelignore` | Keeps local state / tests / venv out of the bundle |
 
 ---
@@ -55,38 +65,58 @@ npm i -g vercel
 vercel            # first run links/creates the project
 ```
 
-In **Vercel → Project → Settings**:
+In **Vercel → Project → Settings → Environment Variables**, add:
 
-- **General → Node/Build**: ensure the **Python version is 3.12** (so the
-  `libsql-experimental` wheel resolves).
-- **Environment Variables** (add all of these):
+| Name | Value | Required |
+|------|-------|----------|
+| `JOBAGENT_DB_URL` | `libsql://jobagent-<org>.turso.io` | yes (persistence) |
+| `JOBAGENT_DB_AUTH_TOKEN` | *(the token from step 1)* | yes |
+| `JOBAGENT_DATA_DIR` | `/tmp/jobagent` | yes |
+| `JOBAGENT_WEB_PASSWORD` | *(a strong password)* | yes (public URL) |
+| `JOBAGENT_WEB_USER` | *(defaults to `admin`)* | optional |
+| `JOBAGENT_WEB_DEBUG` | `1` to show tracebacks in-page while debugging | optional |
 
-  | Name | Value |
-  |------|-------|
-  | `JOBAGENT_DB_URL` | `libsql://jobagent-<org>.turso.io` |
-  | `JOBAGENT_DB_AUTH_TOKEN` | *(the token from step 1)* |
-  | `JOBAGENT_DATA_DIR` | `/tmp/jobagent` |
-  | `JOBAGENT_WEB_PASSWORD` | *(a strong password)* |
-  | `JOBAGENT_WEB_USER` | *(optional; defaults to `admin`)* |
+> **Python version:** Vercel's Python runtime defaults to **3.12**, which is what
+> the `libsql-experimental` wheel needs — so you normally don't set anything. If
+> a build ever fails compiling that package, you're on 3.13+; pin 3.12 (e.g. a
+> `Pipfile` with `[requires] python_version = "3.12"`). Confirm the running
+> version anytime at `/healthz`.
 
 Then redeploy (`vercel --prod`).
 
 ## Step 3 — First use
 
-Open the deployment URL, log in with the basic-auth credentials, then click
-**Seed demo data** on the dashboard (or set up your profile + companies). State
-now lives in Turso and persists across requests and cold starts.
+1. Visit `/healthz` first — you want `{"ok": true, "driver": "libsql/turso", ...}`.
+2. Open the app, log in, then click **Seed demo data** on the dashboard (or set
+   up your profile). State now lives in Turso and persists across cold starts.
+
+---
+
+## Diagnostics & troubleshooting
+
+| Symptom | Likely cause → fix |
+|---------|--------------------|
+| Page shows a Python **traceback** starting "jobagent failed to start" | App couldn't construct. Read the traceback: usually `ModuleNotFoundError` (a dep didn't install) or a DB config error. |
+| `/healthz` shows `"ok": false` with a libsql error | `JOBAGENT_DB_URL`/`JOBAGENT_DB_AUTH_TOKEN` wrong, or the wheel didn't install (check Python is 3.12). |
+| `/healthz` shows `"driver": "sqlite3 (local file)"` and `"ephemeral": true` | `JOBAGENT_DB_URL` isn't set — data won't persist. Add the Turso vars. |
+| `/healthz` shows `"templates_ok": false` | The HTML templates didn't bundle. Confirm `includeFiles` in `vercel.json` and that `.vercelignore` isn't stripping `jobagent/`. |
+| **Build** fails compiling `libsql-experimental` | Vercel is on Python 3.13+. Pin 3.12 (see above). |
+| `401` on every page | Auth is on (`JOBAGENT_WEB_PASSWORD` set) — log in. `/healthz` and `/favicon.ico` stay open by design. |
+| Dashboard shows a red "data will NOT persist" banner | You're on serverless with no DB. Set `JOBAGENT_DB_URL`. |
+
+Runtime logs (full tracebacks for in-page 500s) are in the Vercel dashboard
+under the deployment's **Logs**, or via `vercel logs <url>`.
 
 ---
 
 ## Caveats on the hosted path
 
-- **Live sourcing is best run locally.** Pulling many ATS boards can exceed a
-  serverless function's time limit (and Vercel's hobby tier caps duration). The
-  **Run pipeline** button defaults to *not* sourcing live boards; leave that box
-  unchecked on Vercel. Best workflow: run `jobagent run` locally against the same
-  Turso DB (set the same env vars in your shell), and use the hosted UI purely to
-  **review and record submissions**.
+- **Live sourcing is disabled on Vercel automatically.** Pulling many ATS boards
+  can exceed the serverless time limit, so the "source live boards" option is
+  hidden and forced off on Vercel (`VERCEL` env). Best workflow: run
+  `jobagent run` locally against the same Turso DB (export the same env vars in
+  your shell), and use the hosted UI to **review and record submissions**. The
+  **Run pipeline** button on Vercel still re-scores/tailors/preps existing jobs.
 - **Generated cover-letter files are ephemeral.** The review page re-renders the
   cover letter from its template when the file is gone, so it always displays —
   but downloadable `.docx` files written to `/tmp` won't persist.

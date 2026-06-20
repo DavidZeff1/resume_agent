@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Materials · jobagent{% endblock %}
+{% block content %}
+  <h1>Materials</h1>
+  <p class="sub">Your resumes and cover letters. The agent only <em>selects and attaches</em> these — it never writes or edits them. This is what prep quality depends on.</p>
+
+  {% if serverless %}
+    <div class="flash" style="background:var(--warn-soft);border-color:#f0d4a8;color:var(--warn)">
+      On serverless, uploaded files live in ephemeral storage and may not survive a cold start.
+      For durable hosted materials, commit them to the repo and reference them by path.
+    </div>
+  {% endif %}
+
+  <h2>Resumes</h2>
+  {% if resumes %}
+    <table>
+      <thead><tr><th>track</th><th>file</th><th></th></tr></thead>
+      <tbody>
+        {% for r in resumes %}
+          <tr>
+            <td><strong>{{ r.track }}</strong></td>
+            <td class="muted">{{ r.file_path }}{% if r.missing %} <span class="badge b-bad">file missing</span>{% endif %}</td>
+            <td>
+              <form class="inline" method="post" action="/materials/resume/{{ r.id }}/delete"
+                    onsubmit="return confirm('Remove this resume?');">
+                <button class="btn ghost sm" type="submit">✕</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No resumes yet — add one below (one per track, e.g. backend, data_scientist).</div>
+  {% endif %}
+
+  <div class="card" style="margin-top:12px">
+    <form method="post" action="/materials/resume/add" enctype="multipart/form-data">
+      <div class="two">
+        <div class="field">
+          <label for="track">Track</label>
+          <input type="text" id="track" name="track" placeholder="backend" required>
+        </div>
+        <div class="field">
+          <label for="rfile">Upload a file</label>
+          <input type="file" id="rfile" name="file">
+        </div>
+      </div>
+      <div class="field">
+        <label for="rpath">…or a file path on this machine <span class="muted">(local use)</span></label>
+        <input type="text" id="rpath" name="path" placeholder="~/resumes/backend.docx">
+      </div>
+      <button class="btn" type="submit">Add resume</button>
+    </form>
+  </div>
+
+  <h2>Cover letters</h2>
+  {% if covers %}
+    <table>
+      <thead><tr><th>name</th><th>track</th><th>type</th><th>file</th><th></th></tr></thead>
+      <tbody>
+        {% for c in covers %}
+          <tr>
+            <td><strong>{{ c.name }}</strong></td>
+            <td class="muted">{{ c.track or '—' }}</td>
+            <td>{% if c.is_template %}<span class="badge b-accent">template</span>{% else %}<span class="badge b-grey">finished</span>{% endif %}</td>
+            <td class="muted">{{ c.file_path }}{% if c.missing %} <span class="badge b-bad">file missing</span>{% endif %}</td>
+            <td>
+              <form class="inline" method="post" action="/materials/cover/{{ c.id }}/delete"
+                    onsubmit="return confirm('Remove this cover letter?');">
+                <button class="btn ghost sm" type="submit">✕</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No cover letters yet — add one below. A Jinja2 template can fill {{ '{{ company }}' }} / {{ '{{ role }}' }} slots.</div>
+  {% endif %}
+
+  <div class="card" style="margin-top:12px">
+    <form method="post" action="/materials/cover/add" enctype="multipart/form-data">
+      <div class="two">
+        <div class="field">
+          <label for="cname">Name</label>
+          <input type="text" id="cname" name="name" placeholder="Default template" required>
+        </div>
+        <div class="field">
+          <label for="ctrack">Track <span class="muted">(optional)</span></label>
+          <input type="text" id="ctrack" name="track" placeholder="backend">
+        </div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="cfile">Upload a file</label>
+          <input type="file" id="cfile" name="file">
+        </div>
+        <div class="field">
+          <label for="cpath">…or a file path</label>
+          <input type="text" id="cpath" name="path" placeholder="~/cover/template.txt.j2">
+        </div>
+      </div>
+      <label class="note"><input type="checkbox" name="template"> this is a Jinja2 template (fills company/role slots)</label>
+      <div style="margin-top:12px"><button class="btn" type="submit">Add cover letter</button></div>
+    </form>
+  </div>
+{% endblock %}
