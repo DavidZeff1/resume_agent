@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Profile · jobagent{% endblock %}
+{% block content %}
+  <h1>Profile</h1>
+  <p class="sub">The only facts the agent may use about you. Anything not here becomes a field for you to complete — the agent never invents profile facts.</p>
+
+  {% if missing %}<div class="flash" style="background:var(--warn-soft);border-color:#f0d4a8;color:var(--warn)">⚠ missing core fields needed before prep: {{ missing | join(', ') }}</div>{% endif %}
+
+  <form method="post" action="/profile">
+    <div class="card">
+      <div class="two">
+        {% for name, label in fields %}
+          <div class="field">
+            <label for="{{ name }}">{{ label }}</label>
+            <input type="text" id="{{ name }}" name="{{ name }}" value="{{ profile.get(name) or '' }}">
+          </div>
+        {% endfor %}
+      </div>
+      <div class="field">
+        <label for="languages">Languages <span class="muted">(comma-separated)</span></label>
+        <input type="text" id="languages" name="languages" value="{{ languages }}">
+      </div>
+    </div>
+
+    <h2>Extra facts</h2>
+    <p class="note" style="margin-top:-6px">Free-form key/value facts (e.g. <code>skills</code>, <code>years_experience</code>) the scorer and prep can use.</p>
+    <div class="card">
+      <div id="facts">
+        {% for k, v in facts.items() %}
+          <div class="row" style="margin-bottom:8px">
+            <input type="text" name="fact_key" value="{{ k }}" placeholder="key" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:9px">
+            <input type="text" name="fact_value" value="{{ v }}" placeholder="value" style="flex:2;padding:8px 10px;border:1px solid var(--line);border-radius:9px">
+          </div>
+        {% endfor %}
+        <div class="row" style="margin-bottom:8px">
+          <input type="text" name="fact_key" value="" placeholder="key" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:9px">
+          <input type="text" name="fact_value" value="" placeholder="value" style="flex:2;padding:8px 10px;border:1px solid var(--line);border-radius:9px">
+        </div>
+      </div>
+      <button type="button" class="btn ghost sm" onclick="addFact()">+ add fact</button>
+    </div>
+
+    <div style="margin-top:18px"><button class="btn" type="submit">Save profile</button></div>
+  </form>
+
+  <script>
+    function addFact() {
+      var wrap = document.getElementById('facts');
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.style.marginBottom = '8px';
+      row.innerHTML =
+        '<input type="text" name="fact_key" placeholder="key" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:9px">' +
+        '<input type="text" name="fact_value" placeholder="value" style="flex:2;padding:8px 10px;border:1px solid var(--line);border-radius:9px">';
+      wrap.appendChild(row);
+    }
+  </script>
+{% endblock %}

@@ -425,6 +425,8 @@ def _register_optional(sub) -> None:
         ("jobagent.review.cli", "register"),
         ("jobagent.track.cli", "register"),
         ("jobagent.pipeline", "register_cli"),
+        ("jobagent.demo", "register"),
+        ("jobagent.web.cli", "register"),
     ]:
         try:
             mod = __import__(module_name, fromlist=[attr])

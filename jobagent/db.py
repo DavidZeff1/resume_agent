@@ -6,6 +6,7 @@ foreign keys and WAL so concurrent reads during a long pipeline run are safe.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,14 +18,144 @@ _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 
 def connect(config: Config) -> sqlite3.Connection:
-    """Open a tuned connection to the configured DB file."""
+    """Open a connection to the configured database.
+
+    Default (and all local/CLI use): a tuned connection to the local SQLite
+    file. If ``JOBAGENT_DB_URL`` is set (a Turso/libSQL ``libsql://…`` URL), we
+    instead connect to that remote database — this is what makes the app work
+    on an ephemeral filesystem like Vercel, where a local SQLite file would not
+    persist between requests. See :func:`_connect_libsql`.
+    """
     config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+
+    db_url = os.environ.get("JOBAGENT_DB_URL")
+    if db_url:
+        return _connect_libsql(config, db_url)
+
     conn = sqlite3.connect(config.paths.db_path, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA busy_timeout = 5000")
     return conn
+
+
+def _connect_libsql(config: Config, db_url: str):
+    """Connect to a Turso/libSQL database as a stdlib-sqlite3 work-alike.
+
+    Uses an *embedded replica*: a local SQLite file (in the writable data dir,
+    e.g. ``/tmp`` on Vercel) kept in sync with the remote primary. Reads are
+    served locally; writes are forwarded to the primary. We sync on connect so
+    each request sees fresh data. The returned object is wrapped so the rest of
+    the codebase keeps using ``row["col"]`` / ``dict(row)`` / ``.lastrowid`` /
+    explicit ``BEGIN/COMMIT`` exactly as with stdlib sqlite3.
+
+    NOTE: this path requires the ``libsql-experimental`` package (prebuilt
+    wheels exist for CPython 3.9–3.12 on Linux, which is what Vercel runs).
+    """
+    try:
+        import libsql_experimental as libsql  # type: ignore
+    except ImportError as exc:  # pragma: no cover - only hit in the hosted path
+        raise RuntimeError(
+            "JOBAGENT_DB_URL is set but 'libsql-experimental' is not installed. "
+            "Install it (pip install libsql-experimental) to use a remote "
+            "Turso/libSQL database."
+        ) from exc
+
+    auth_token = os.environ.get("JOBAGENT_DB_AUTH_TOKEN")
+    replica_path = str(config.paths.data_dir / "replica.db")
+    raw = libsql.connect(replica_path, sync_url=db_url, auth_token=auth_token)
+    try:
+        raw.sync()  # pull the latest from the primary before serving reads
+    except Exception:
+        pass
+    return _LibsqlConn(raw)
+
+
+# --------------------------------------------------------------------------- #
+# libSQL compatibility shim
+#
+# Makes a libSQL connection behave like the stdlib sqlite3 connection the rest
+# of the codebase expects: rows support both ``row[i]`` and ``row["col"]`` and
+# ``dict(row)``; ``execute`` returns a cursor exposing ``fetchone/fetchall`` and
+# ``lastrowid`` and is iterable. The shim is intentionally tiny and only used on
+# the hosted path — the local sqlite3 path above is untouched.
+# --------------------------------------------------------------------------- #
+class _Row:
+    """A sqlite3.Row work-alike: int- and name-indexable, dict()-able."""
+
+    __slots__ = ("_cols", "_vals")
+
+    def __init__(self, cols: list[str], vals: list):
+        self._cols = cols
+        self._vals = vals
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._vals[key]
+        return self._vals[self._cols.index(key)]
+
+    def keys(self):
+        return list(self._cols)
+
+    def __iter__(self):
+        return iter(self._vals)
+
+    def __len__(self):
+        return len(self._vals)
+
+
+class _Cursor:
+    def __init__(self, cur):
+        self._cur = cur
+
+    def _cols(self) -> list[str]:
+        desc = self._cur.description
+        return [d[0] for d in desc] if desc else []
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        if row is None:
+            return None
+        return _Row(self._cols(), list(row))
+
+    def fetchall(self):
+        cols = self._cols()
+        return [_Row(cols, list(r)) for r in self._cur.fetchall()]
+
+    def __iter__(self):
+        return iter(self.fetchall())
+
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
+    @property
+    def rowcount(self):
+        return getattr(self._cur, "rowcount", -1)
+
+
+class _LibsqlConn:
+    def __init__(self, raw):
+        self._raw = raw
+
+    def execute(self, sql: str, params: tuple = ()):  # noqa: D401
+        return _Cursor(self._raw.execute(sql, params))
+
+    def executescript(self, script: str):
+        # libSQL's executescript exists; fall back to statement-splitting if not.
+        if hasattr(self._raw, "executescript"):
+            return self._raw.executescript(script)
+        for stmt in (s.strip() for s in script.split(";")):
+            if stmt:
+                self._raw.execute(stmt)
+        return None
+
+    def commit(self):
+        return self._raw.commit()
+
+    def close(self):
+        return self._raw.close()
 
 
 def init_db(conn: sqlite3.Connection) -> None:

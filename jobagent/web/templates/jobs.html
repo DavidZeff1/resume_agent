@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Jobs · jobagent{% endblock %}
+{% block content %}
+  <h1>Jobs</h1>
+  <p class="sub">Every discovered role, ranked by score. Scoring is offline and deterministic unless an API key enables Claude.</p>
+
+  {% if jobs %}
+    <table>
+      <thead>
+        <tr><th>score</th><th>title</th><th>company</th><th>location</th><th>track</th><th>status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for j in jobs %}
+          <tr>
+            <td>{{ m.score_badge(j.score) }}</td>
+            <td>
+              <strong>{{ j.title }}</strong>
+              {% if j.score_rationale %}<div class="note">{{ j.score_rationale }}</div>{% endif %}
+            </td>
+            <td>{{ j.company }}</td>
+            <td class="muted">{{ j.location or '—' }}</td>
+            <td>{{ j.suggested_track or '—' }}</td>
+            <td>{{ m.status_badge(j.status) }}</td>
+            <td><a href="{{ j.url }}" target="_blank" rel="noopener">open ↗</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No jobs yet — run the pipeline or seed demo data from the dashboard.</div>
+  {% endif %}
+{% endblock %}

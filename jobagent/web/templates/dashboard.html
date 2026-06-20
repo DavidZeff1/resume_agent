@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Dashboard · jobagent{% endblock %}
+{% block content %}
+  <h1>Dashboard</h1>
+  <p class="sub">Local job-application prep. Everything recoverable is automated; you keep the one irreversible step — submitting.</p>
+
+  <div class="grid">
+    <div class="card stat hl">
+      <div class="n">{{ counts.queued }}</div>
+      <div class="l">waiting in your review queue</div>
+    </div>
+    <div class="card stat">
+      <div class="n">{{ counts.jobs_by_status.values() | sum }}</div>
+      <div class="l">jobs discovered</div>
+    </div>
+    <div class="card stat">
+      <div class="n">{{ counts.resumes }}</div>
+      <div class="l">resume variants</div>
+    </div>
+    <div class="card stat">
+      <div class="n">{{ counts.companies_active }}<span class="muted" style="font-size:16px">/{{ counts.companies_total }}</span></div>
+      <div class="l">companies active</div>
+    </div>
+  </div>
+
+  <h2>Profile</h2>
+  <div class="card">
+    {% if profile and profile.full_name %}
+      <div class="row spread">
+        <div><strong>{{ profile.full_name }}</strong> &lt;{{ profile.email or '?' }}&gt; · {{ profile.location or 'no location' }}</div>
+        <a class="btn ghost sm" href="/profile">Edit</a>
+      </div>
+      {% if missing %}<p class="note" style="color:var(--warn);margin:10px 0 0">⚠ missing core fields: {{ missing | join(', ') }}</p>{% endif %}
+    {% else %}
+      <div class="row spread">
+        <span class="muted">No profile set yet — this is what prep quality depends on.</span>
+        <a class="btn sm" href="/profile">Set up profile</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <h2>Run the pipeline</h2>
+  <div class="card">
+    <div class="row spread">
+      <span class="note">source → score → tailor → prep. Fills what's safe and queues the rest for you. It never submits.</span>
+      <div class="row">
+        <form class="inline" method="post" action="/run">
+          <label class="note"><input type="checkbox" name="source" /> also source live boards</label>
+          <button class="btn" type="submit">Run pipeline</button>
+        </form>
+        <form class="inline" method="post" action="/demo">
+          <button class="btn ghost" type="submit">Seed demo data</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <h2>Jobs by status</h2>
+  {% if counts.jobs_by_status %}
+    <div class="row">
+      {% for status, n in counts.jobs_by_status.items() %}
+        <div class="card" style="padding:10px 14px">{{ m.status_badge(status) }} <strong>{{ n }}</strong></div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">No jobs yet. Run the pipeline or seed demo data above.</div>
+  {% endif %}
+
+  <h2>Recent activity</h2>
+  {% if events %}
+    <table>
+      <thead><tr><th>when</th><th>entity</th><th>action</th><th>detail</th></tr></thead>
+      <tbody>
+        {% for e in events %}
+          <tr>
+            <td class="muted">{{ e.ts[:19].replace('T', ' ') }}</td>
+            <td>{{ e.entity_type }}{% if e.entity_id %} #{{ e.entity_id }}{% endif %}</td>
+            <td>{{ e.action }}</td>
+            <td class="muted">{{ e.detail }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No activity logged yet.</div>
+  {% endif %}
+{% endblock %}

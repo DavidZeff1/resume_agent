@@ -21,6 +21,8 @@ dependencies = [
 # LLM-backed scoring + the Agent SDK loop (the pipeline runs without these).
 llm = ["anthropic>=0.40", "claude-agent-sdk>=0.1"]
 dev = ["pytest>=8.0", "python-dotenv>=1.0"]
+# Local web UI (`jobagent web`). The CLI works fully without these.
+web = ["starlette>=0.37", "uvicorn>=0.27", "python-multipart>=0.0.9"]
 
 [project.scripts]
 jobagent = "jobagent.cli:main"
@@ -29,7 +31,7 @@ jobagent = "jobagent.cli:main"
 include = ["jobagent*"]
 
 [tool.setuptools.package-data]
-jobagent = ["schema.sql"]
+jobagent = ["schema.sql", "web/templates/*.html"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

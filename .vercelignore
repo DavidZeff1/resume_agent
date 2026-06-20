@@ -1,0 +1,13 @@
+# Keep the serverless bundle small and free of local state.
+.venv/
+data/
+tests/
+.pytest_cache/
+__pycache__/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.git/
+.DS_Store
+jobagent.egg-info/
+job-agent-build-plan.md

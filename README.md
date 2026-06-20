@@ -42,6 +42,54 @@ python3 -m venv .venv --system-site-packages
 Then either use the `jobagent` script (installed by `pip install -e .`) or
 `python -m jobagent`.
 
+The optional **web UI** (`jobagent web`) adds `starlette`, `uvicorn`, and
+`python-multipart`:
+
+```bash
+.venv/bin/pip install -e '.[web]'
+```
+
+## Try it in 30 seconds (no API key, no network)
+
+```bash
+jobagent demo      # seeds a profile, the sample resumes, one company, and a
+                   # handful of sample roles, then runs score → tailor → prep
+jobagent web       # open the UI at http://127.0.0.1:8000
+```
+
+`jobagent demo` is fully offline and idempotent: it leaves a few applications
+waiting in the review queue so you can immediately see the human gate. It never
+sources live boards and never submits.
+
+## Web UI
+
+`jobagent web` serves a local Starlette app (default `http://127.0.0.1:8000`)
+that is a thin view over the same SQLite state the CLI uses — so every guardrail
+holds. It has **no submit-to-site code path**; the "record submission" button
+only logs that *you* submitted, exactly like `jobagent review submit`.
+
+| Page | What it does |
+|------|--------------|
+| Dashboard | Counts, profile status, recent audit log; buttons to run the pipeline or seed demo data |
+| Jobs | Every discovered role, ranked by score, with its rationale |
+| Review queue | The human gate — each prepared application, one click from done |
+| Application detail | Cover letter, pre-filled data, the fields **you** must complete, and the apply link |
+| Profile | Edit the core facts + extra facts the agent may use |
+| Companies | Activate/deactivate watchlist entries |
+
+```bash
+jobagent web --port 8000          # default
+jobagent web --host 0.0.0.0 --no-browser
+```
+
+### Hosting it
+
+This is a local single-user tool, so the simplest remote access is a tunnel
+(Tailscale / cloudflared) to a local `jobagent web`. For a serverless deploy on
+**Vercel** — which needs a hosted database (Turso/libSQL), a writable `/tmp`
+data dir, and a password gate, all wired in behind env vars — see
+[`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md).
+
 ## Quickstart
 
 ```bash
@@ -130,6 +178,8 @@ jobagent/
   review/       the human gate CLI
   track/        tracking + followup + schedule(.ics)
   pipeline.py   run_once (deterministic)   pipeline_agent.py (SDK loop)
+  demo.py       `jobagent demo` — seed an offline example + run the pipeline
+  web/          optional Starlette UI (app.py, cli.py, templates/) — `jobagent web`
   cli.py        argparse CLI (stages auto-register)
 tests/          pytest, fully offline
 ```

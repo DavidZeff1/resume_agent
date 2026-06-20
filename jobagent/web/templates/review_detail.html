@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Application #{{ a.id }} · jobagent{% endblock %}
+{% block content %}
+  <div class="row spread">
+    <h1>Application #{{ a.id }}</h1>
+    {{ m.status_badge(a.status) }}
+  </div>
+
+  {% if job %}
+    <div class="card" style="margin-bottom:18px">
+      <div class="row spread">
+        <div>
+          <div style="font-size:18px;font-weight:700">{{ job.title }}</div>
+          <div class="muted">{{ company }} · {{ job.location or 'location n/a' }}</div>
+        </div>
+        <div style="text-align:right">
+          <div>{{ m.score_badge(job.score) }}</div>
+          <a class="btn sm" style="margin-top:8px" href="{{ job.url }}" target="_blank" rel="noopener">Open apply page ↗</a>
+        </div>
+      </div>
+      {% if job.score_rationale %}<p class="note" style="margin:10px 0 0">{{ job.score_rationale }}</p>{% endif %}
+    </div>
+  {% endif %}
+
+  <h2>Materials</h2>
+  <div class="card kv">
+    <div><span class="k">Resume:</span>
+      {% if resume %}{{ resume.file_path }}{% if resume_missing %} <span class="badge b-bad">file missing on disk</span>{% endif %}
+      {% else %}<span class="muted">(none selected)</span>{% endif %}
+    </div>
+  </div>
+
+  <h2>Cover letter</h2>
+  {% if cover_text %}
+    <pre class="cover">{{ cover_text }}</pre>
+  {% else %}
+    <div class="empty">No cover letter rendered for this application.</div>
+  {% endif %}
+
+  <h2>Pre-filled from your profile</h2>
+  {% if prefilled %}
+    <div class="card">
+      {% for k, v in prefilled.items() %}
+        <div class="kv" style="padding:4px 0"><span class="k">{{ k }}:</span> {{ v }}</div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">Nothing could be pre-filled.</div>
+  {% endif %}
+
+  <h2>You must complete these</h2>
+  <p class="note" style="margin-top:-6px">The agent will <strong>not</strong> answer these — screening questions, salary, and authorization specifics always route to you.</p>
+  {% if unanswered %}
+    {% for u in unanswered %}
+      <div class="item {{ 'required' if u.required else 'optional' }}">
+        <div class="row spread">
+          <strong>{{ u.label }}</strong>
+          <span class="badge {{ 'b-warn' if u.required else 'b-grey' }}">{{ 'required' if u.required else 'optional' }}</span>
+        </div>
+        <div class="note">kind: {{ u.kind }}{% if u.reason %} — {{ u.reason }}{% endif %}</div>
+        {% if u.suggested %}<div class="note">suggested (from your profile, verify): <strong>{{ u.suggested }}</strong></div>{% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">Nothing left for you — but still review before recording a submission.</div>
+  {% endif %}
+
+  <h2>Record your submission</h2>
+  <div class="card">
+    {% if submitted %}
+      <span class="badge b-good">already recorded as submitted</span>
+    {% else %}
+      <div class="row spread">
+        <span class="note">This only records that <strong>you</strong> submitted on the real site. The agent does not submit.</span>
+        <form method="post" action="/review/{{ a.id }}/submit"
+              onsubmit="return confirm('Did you finish and submit this application on the real site?');">
+          <button class="btn good" type="submit">I submitted this — record it</button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+
+  <p style="margin-top:18px"><a href="/review">← back to review queue</a></p>
+{% endblock %}

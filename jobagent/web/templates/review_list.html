@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Review queue · jobagent{% endblock %}
+{% block content %}
+  <h1>Review queue</h1>
+  <p class="sub">The human gate. Each application is one click from done — finish the screening fields on the real site, then record that you submitted.</p>
+
+  {% if items %}
+    <table>
+      <thead>
+        <tr><th>score</th><th>role</th><th>company</th><th>to answer</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+          <tr>
+            <td>{{ m.score_badge(it.score) }}</td>
+            <td><strong>{{ it.title }}</strong></td>
+            <td>{{ it.company }}</td>
+            <td>
+              {{ it.to_answer }} field{{ '' if it.to_answer == 1 else 's' }}
+              {% if it.required %}<span class="badge b-warn">{{ it.required }} required</span>{% endif %}
+            </td>
+            <td><a class="btn sm" href="/review/{{ it.id }}">Review →</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">Nothing queued for review. Run the pipeline from the dashboard to prepare applications.</div>
+  {% endif %}
+{% endblock %}

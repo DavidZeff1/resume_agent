@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Companies · jobagent{% endblock %}
+{% block content %}
+  <h1>Companies</h1>
+  <p class="sub">Your watchlist — a finite, human-defined set of ATS boards. Only active companies are sourced. Edit the full list in <code>config.yaml</code>.</p>
+
+  {% if companies %}
+    <table>
+      <thead>
+        <tr><th>name</th><th>ATS</th><th>token</th><th>status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for c in companies %}
+          <tr>
+            <td><strong>{{ c.name }}</strong>{% if c.notes %}<div class="note">{{ c.notes }}</div>{% endif %}</td>
+            <td>{{ c.ats_type }}</td>
+            <td class="muted">{{ c.board_token or c.board_url or '—' }}</td>
+            <td>
+              {% if c.active %}<span class="badge b-good">active</span>{% else %}<span class="badge b-grey">inactive</span>{% endif %}
+            </td>
+            <td>
+              <form class="inline" method="post" action="/companies/{{ c.id }}/toggle">
+                <button class="btn ghost sm" type="submit">{{ 'Deactivate' if c.active else 'Activate' }}</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No companies yet. Add them in <code>config.yaml</code> then run <code>jobagent company sync</code>.</div>
+  {% endif %}
+{% endblock %}
