@@ -14,5 +14,10 @@ lxml>=5.0
 starlette>=0.37
 python-multipart>=0.0.9
 
-# Remote database (Turso/libSQL) — needs a prebuilt wheel (Linux CPython ≤3.12)
-libsql-experimental>=0.0.30
+# Remote database (Turso/libSQL). Prebuilt wheels exist only for CPython ≤3.12,
+# so the marker skips it on newer Pythons rather than failing the whole build by
+# trying to compile from Rust source. We pin Python to 3.12 via .python-version
+# so this normally installs and Turso persistence works; if that pin is ever
+# ignored, the app still builds and falls back to ephemeral storage (/healthz
+# explains it). Keep .python-version and this marker in sync.
+libsql-experimental>=0.0.30; python_version < "3.13"

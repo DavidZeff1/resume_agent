@@ -11,7 +11,7 @@ lxml>=5.0
 # For LOCAL dev you do NOT need these here; use `pip install -e '.[web]'`.
 starlette>=0.37
 python-multipart>=0.0.9
-libsql-experimental>=0.0.30   # SQLite-compatible Turso client (Linux wheels: CPython 3.9–3.12)
+libsql-experimental>=0.0.30; python_version < "3.13"   # Turso client; wheels: CPython ≤3.12 (skipped elsewhere so installs never fail)
 
 # Optional — LLM-backed scoring & the Agent SDK loop.
 # The pipeline runs without these (a deterministic HeuristicScorer is the fallback).

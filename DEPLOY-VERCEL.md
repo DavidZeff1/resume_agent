@@ -41,6 +41,7 @@ opaque 500:
 | `vercel.json` | Explicit `builds` (Python) + `routes` (all paths → the app) + `includeFiles` |
 | `api/requirements.txt` | Deps next to the entrypoint, where `@vercel/python` installs from |
 | `requirements.txt` | Same deps at the root (belt-and-suspenders) |
+| `.python-version` | Pins Vercel to Python **3.12** (the version `libsql-experimental` has wheels for) |
 | `.vercelignore` | Keeps local state / tests / venv out of the bundle |
 
 ---
@@ -76,11 +77,13 @@ In **Vercel → Project → Settings → Environment Variables**, add:
 | `JOBAGENT_WEB_USER` | *(defaults to `admin`)* | optional |
 | `JOBAGENT_WEB_DEBUG` | `1` to show tracebacks in-page while debugging | optional |
 
-> **Python version:** Vercel's Python runtime defaults to **3.12**, which is what
-> the `libsql-experimental` wheel needs — so you normally don't set anything. If
-> a build ever fails compiling that package, you're on 3.13+; pin 3.12 (e.g. a
-> `Pipfile` with `[requires] python_version = "3.12"`). Confirm the running
-> version anytime at `/healthz`.
+> **Python version (handled for you):** the committed `.python-version` file
+> pins Vercel to **3.12**, the version `libsql-experimental` ships wheels for —
+> so you don't set anything. As a safety net, that dependency also carries a
+> `python_version < "3.13"` marker: if the pin is ever ignored (Vercel's default
+> is drifting toward 3.14), the build still **succeeds** — it simply skips the
+> Turso driver and falls back to ephemeral storage, which `/healthz` flags. The
+> running version is shown as the `python` field at `/healthz`.
 
 Then redeploy (`vercel --prod`).
 
@@ -97,10 +100,10 @@ Then redeploy (`vercel --prod`).
 | Symptom | Likely cause → fix |
 |---------|--------------------|
 | Page shows a Python **traceback** starting "jobagent failed to start" | App couldn't construct. Read the traceback: usually `ModuleNotFoundError` (a dep didn't install) or a DB config error. |
-| `/healthz` shows `"ok": false` with a libsql error | `JOBAGENT_DB_URL`/`JOBAGENT_DB_AUTH_TOKEN` wrong, or the wheel didn't install (check Python is 3.12). |
+| `/healthz` shows `"ok": false` with a libsql error | `JOBAGENT_DB_URL`/`JOBAGENT_DB_AUTH_TOKEN` is wrong. |
+| Turso vars are set but `/healthz` still shows `"driver": "sqlite3 (local file)"` | The `libsql` import was skipped because Vercel ran Python 3.13+ (check the `python` field). Make sure `.python-version` (= `3.12`) is committed and the deploy picked it up. |
 | `/healthz` shows `"driver": "sqlite3 (local file)"` and `"ephemeral": true` | `JOBAGENT_DB_URL` isn't set — data won't persist. Add the Turso vars. |
 | `/healthz` shows `"templates_ok": false` | The HTML templates didn't bundle. Confirm `includeFiles` in `vercel.json` and that `.vercelignore` isn't stripping `jobagent/`. |
-| **Build** fails compiling `libsql-experimental` | Vercel is on Python 3.13+. Pin 3.12 (see above). |
 | `401` on every page | Auth is on (`JOBAGENT_WEB_PASSWORD` set) — log in. `/healthz` and `/favicon.ico` stay open by design. |
 | Dashboard shows a red "data will NOT persist" banner | You're on serverless with no DB. Set `JOBAGENT_DB_URL`. |
 
