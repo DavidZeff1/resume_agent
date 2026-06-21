@@ -120,6 +120,11 @@ under the deployment's **Logs**, or via `vercel logs <url>`.
 - **Generated cover-letter files are ephemeral.** The review page re-renders the
   cover letter from its template when the file is gone, so it always displays —
   but downloadable `.docx` files written to `/tmp` won't persist.
+- **Uploaded materials are ephemeral too.** A résumé/cover letter uploaded
+  through the **Materials** page lands in `/tmp` and may vanish on a cold start
+  (its DB row survives, but the file behind it won't). For durable hosted
+  materials, commit the files to the repo and add them *by path* instead. The
+  Materials page shows a banner saying as much when running on Vercel.
 - **Still never submits.** There is no submit-to-site code path here either; the
   "record submission" button only logs that *you* submitted.
 

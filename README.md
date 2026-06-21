@@ -71,11 +71,16 @@ only logs that *you* submitted, exactly like `jobagent review submit`.
 | Page | What it does |
 |------|--------------|
 | Dashboard | Counts, profile status, recent audit log; buttons to run the pipeline or seed demo data |
-| Jobs | Every discovered role, ranked by score, with its rationale |
+| Jobs | Every discovered role, ranked by score with its rationale; **Prepare** one to override the scorer, or **Skip** it |
 | Review queue | The human gate — each prepared application, one click from done |
 | Application detail | Cover letter, pre-filled data, the fields **you** must complete, and the apply link |
-| Profile | Edit the core facts + extra facts the agent may use |
+| Tracker | Submitted applications and their outcome — record *no response / rejected / interview / offer* as you hear back |
+| Materials | Add or remove résumés and cover letters (upload a file or point at a path on this machine) |
 | Companies | Add / remove / activate / deactivate watchlist entries |
+| Profile | Edit the core facts + extra facts the agent may use |
+
+Every mutating action is crash-proofed: bad input or an illegal state change
+becomes a clear in-page message, never a 500.
 
 ```bash
 jobagent web --port 8000          # default

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient
@@ -152,9 +153,12 @@ def test_company_add_invalid_ats_is_graceful(isolated_env):
         data={"name": "Bad", "ats": "not-a-real-ats", "token": "x"},
         follow_redirects=False,
     )
-    # no 500 — a redirect carrying a clear error message
+    # no 500 — the post_action guard turns the ValueError into a graceful
+    # redirect back to /companies whose flash names what went wrong.
     assert r.status_code == 303
-    assert "Could+not+add" in r.headers["location"]
+    loc = r.headers["location"]
+    assert loc.startswith("/companies?msg=")
+    assert "ats_type" in loc
 
 
 def test_auth_gate_when_password_set(isolated_env, monkeypatch):
@@ -177,3 +181,172 @@ def test_dashboard_warns_on_serverless_without_db(isolated_env, monkeypatch):
     assert "will NOT persist" in html
     # the live-source checkbox is hidden on serverless
     assert "source live boards" not in html
+
+
+# --------------------------------------------------------------------------- #
+# Full workflow: demo seed -> prepare/skip -> submit -> outcome -> materials
+# --------------------------------------------------------------------------- #
+def _ctx():
+    """A context against the isolated_env DB (same env every handler reads)."""
+    return AgentContext.create(
+        overrides={"paths": {"data_dir": os.environ["JOBAGENT_DATA_DIR"]}}
+    )
+
+
+def _seed_demo(client):
+    assert client.post("/demo", follow_redirects=False).status_code == 303
+
+
+def test_every_page_renders_after_demo(isolated_env):
+    """The whole UI is reachable and 200s once there's real data behind it."""
+    client = TestClient(create_app())
+    _seed_demo(client)
+    for path in ("/", "/jobs", "/review", "/tracker", "/materials", "/companies", "/profile"):
+        assert client.get(path).status_code == 200, path
+    assert client.get("/favicon.ico").status_code == 204
+
+
+def test_job_prepare_override_and_skip(isolated_env):
+    client = TestClient(create_app())
+    _seed_demo(client)
+    with _ctx() as ctx:
+        skipped = ctx.conn.execute(
+            "SELECT id FROM jobs WHERE status='skipped' ORDER BY id LIMIT 1"
+        ).fetchone()["id"]
+        queued = ctx.conn.execute(
+            "SELECT id FROM jobs WHERE status='queued_for_review' ORDER BY id LIMIT 1"
+        ).fetchone()["id"]
+
+    # Prepare overrides the scorer: a skipped job is shortlisted -> tailored ->
+    # prepped, landing in the review queue.
+    r = client.post(f"/jobs/{skipped}/prepare", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/review")
+    with _ctx() as ctx:
+        assert ctx.conn.execute(
+            "SELECT status FROM jobs WHERE id=?", (skipped,)
+        ).fetchone()["status"] == "queued_for_review"
+
+    # Skip takes a job out of consideration.
+    r = client.post(f"/jobs/{queued}/skip", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/jobs")
+    with _ctx() as ctx:
+        assert ctx.conn.execute(
+            "SELECT status FROM jobs WHERE id=?", (queued,)
+        ).fetchone()["status"] == "skipped"
+
+
+def test_tracker_submit_and_record_outcome(isolated_env):
+    client = TestClient(create_app())
+    _seed_demo(client)
+    with _ctx() as ctx:
+        app_id = ctx.conn.execute(
+            "SELECT id FROM applications WHERE status='queued_for_review' ORDER BY id LIMIT 1"
+        ).fetchone()["id"]
+
+    # The HUMAN records they submitted on the real site (the agent never submits).
+    r = client.post(f"/review/{app_id}/submit", follow_redirects=False)
+    assert r.status_code == 303
+    # It now shows up on the tracker, where outcomes get recorded.
+    assert client.get("/tracker").status_code == 200
+    r = client.post(
+        f"/tracker/{app_id}/outcome", data={"status": "interview"}, follow_redirects=False
+    )
+    assert r.status_code == 303
+    with _ctx() as ctx:
+        job_id = ctx.conn.execute(
+            "SELECT job_id FROM applications WHERE id=?", (app_id,)
+        ).fetchone()["job_id"]
+        assert ctx.conn.execute(
+            "SELECT status FROM jobs WHERE id=?", (job_id,)
+        ).fetchone()["status"] == "interview"
+
+
+def test_outcome_bad_status_and_missing_app_are_graceful(isolated_env):
+    client = TestClient(create_app())
+    # nonexistent app + bogus status: must redirect, never 500
+    r = client.post(
+        "/tracker/999/outcome", data={"status": "not-a-status"}, follow_redirects=False
+    )
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/tracker")
+
+
+def test_prepare_nonexistent_job_is_graceful(isolated_env):
+    client = TestClient(create_app())
+    r = client.post("/jobs/999/prepare", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/jobs")
+
+
+def test_materials_add_resume_by_path_and_delete(isolated_env):
+    client = TestClient(create_app())
+    r = client.post(
+        "/materials/resume/add",
+        data={"track": "platform", "path": "/tmp/some-resume.txt"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "platform" in client.get("/materials").text
+    with _ctx() as ctx:
+        rid = ctx.conn.execute(
+            "SELECT id FROM resume_variants ORDER BY id LIMIT 1"
+        ).fetchone()["id"]
+    r = client.post(f"/materials/resume/{rid}/delete", follow_redirects=False)
+    assert r.status_code == 303
+    assert "platform" not in client.get("/materials").text
+
+
+def test_materials_resume_needs_track_and_a_source(isolated_env):
+    client = TestClient(create_app())
+    # missing track -> graceful redirect
+    r = client.post(
+        "/materials/resume/add", data={"path": "/tmp/x.txt"}, follow_redirects=False
+    )
+    assert r.status_code == 303 and r.headers["location"].startswith("/materials")
+    # track present but no file and no path -> graceful redirect, no 500
+    r = client.post(
+        "/materials/resume/add", data={"track": "backend"}, follow_redirects=False
+    )
+    assert r.status_code == 303 and r.headers["location"].startswith("/materials")
+    with _ctx() as ctx:
+        assert ctx.conn.execute("SELECT COUNT(*) n FROM resume_variants").fetchone()["n"] == 0
+
+
+def test_materials_add_cover_and_delete(isolated_env):
+    client = TestClient(create_app())
+    r = client.post(
+        "/materials/cover/add",
+        data={"name": "Zeta Letter", "path": "/tmp/zeta.txt.j2", "template": "on"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "Zeta Letter" in client.get("/materials").text
+    with _ctx() as ctx:
+        cid = ctx.conn.execute(
+            "SELECT id FROM cover_letters ORDER BY id LIMIT 1"
+        ).fetchone()["id"]
+    r = client.post(f"/materials/cover/{cid}/delete", follow_redirects=False)
+    assert r.status_code == 303
+    assert "Zeta Letter" not in client.get("/materials").text
+
+
+def test_materials_resume_file_upload_is_saved(isolated_env):
+    """The multipart upload branch actually writes the file under the data dir,
+    so the review page can read it back (it isn't just a dangling path ref)."""
+    client = TestClient(create_app())
+    r = client.post(
+        "/materials/resume/add",
+        data={"track": "uploaded"},
+        files={"file": ("my_resume.txt", b"resume bytes", "text/plain")},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "uploaded" in client.get("/materials").text
+    with _ctx() as ctx:
+        saved = ctx.conn.execute(
+            "SELECT file_path FROM resume_variants WHERE track='uploaded'"
+        ).fetchone()["file_path"]
+    assert Path(saved).exists()
+    assert Path(saved).read_bytes() == b"resume bytes"
