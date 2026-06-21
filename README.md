@@ -78,6 +78,7 @@ only logs that *you* submitted, exactly like `jobagent review submit`.
 | Materials | Add or remove résumés and cover letters (upload a file or point at a path on this machine) |
 | Companies | Add / remove / activate / deactivate watchlist entries |
 | Profile | Edit the core facts + extra facts the agent may use |
+| Guide | A built-in how-to: the workflow, what each tab does, and the guardrails |
 
 Every mutating action is crash-proofed: bad input or an illegal state change
 becomes a clear in-page message, never a 500.

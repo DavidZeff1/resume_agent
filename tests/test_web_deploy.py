@@ -201,9 +201,21 @@ def test_every_page_renders_after_demo(isolated_env):
     """The whole UI is reachable and 200s once there's real data behind it."""
     client = TestClient(create_app())
     _seed_demo(client)
-    for path in ("/", "/jobs", "/review", "/tracker", "/materials", "/companies", "/profile"):
+    for path in ("/", "/jobs", "/review", "/tracker", "/materials", "/companies",
+                 "/profile", "/guide"):
         assert client.get(path).status_code == 200, path
     assert client.get("/favicon.ico").status_code == 204
+
+
+def test_guide_renders_without_any_data(isolated_env):
+    """The help page is DB-free, so it works on a brand-new (empty) install and
+    states the core guardrail."""
+    client = TestClient(create_app())
+    r = client.get("/guide")
+    assert r.status_code == 200
+    assert "How to use jobagent" in r.text
+    assert "never submit" in r.text  # the guardrail is spelled out
+    assert 'href="/guide"' in client.get("/").text  # linked from the nav
 
 
 def test_job_prepare_override_and_skip(isolated_env):

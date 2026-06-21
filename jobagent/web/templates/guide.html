@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Guide · jobagent{% endblock %}
+{% block content %}
+  <h1>How to use jobagent</h1>
+  <p class="sub">
+    jobagent is a job-application <em>prep</em> assistant. It does the busywork —
+    finding roles, scoring them against your profile, drafting your materials and
+    pre-filling what it safely can — then hands every application to
+    <strong>you</strong> to review and submit.
+  </p>
+
+  <div class="flash" style="background:var(--good-soft);border-color:#b6e2c6;color:var(--good)">
+    🔒 <strong>What it will never do:</strong> submit an application to a real site ·
+    invent facts about you · answer screening questions on your behalf ·
+    ignore a site's robots.txt. The final, irreversible step is always yours.
+  </div>
+
+  <h2>Start in 30 seconds</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <strong>Just exploring?</strong>
+      <p class="note" style="margin:8px 0 12px">
+        On the <a href="/">Dashboard</a>, click <strong>Seed demo data</strong>. It
+        loads a sample profile, résumés and a handful of roles, then runs the whole
+        pipeline so finished applications appear in the review queue right away —
+        completely offline, nothing sent anywhere.
+      </p>
+      <a class="btn ghost sm" href="/">Go to Dashboard →</a>
+    </div>
+    <div class="card">
+      <strong>Setting up for real?</strong>
+      <ol style="margin:8px 0 12px;padding-left:20px;color:var(--muted);line-height:1.9">
+        <li>Fill in your <a href="/profile">Profile</a> — the only facts the agent may use.</li>
+        <li>Add a résumé (and a cover letter) in <a href="/materials">Materials</a>.</li>
+        <li>Add target <a href="/companies">Companies</a> to watch.</li>
+        <li>Click <strong>Run pipeline</strong> on the Dashboard.</li>
+      </ol>
+      <a class="btn ghost sm" href="/profile">Set up profile →</a>
+    </div>
+  </div>
+
+  <h2>How the pipeline works</h2>
+  <p class="sub" style="margin-bottom:12px">
+    Each run moves jobs through these stages. The grey steps are automatic; the
+    <span style="color:var(--warn);font-weight:600">highlighted</span> steps are yours.
+  </p>
+
+  {% set steps = [
+    ("1", "Source", false, "Pulls open roles from the companies you're watching, respecting each site's robots.txt. (Disabled on the hosted/serverless version — run it locally instead.)"),
+    ("2", "Score", false, "Ranks every role against your profile and tracks, with a short rationale. Offline and deterministic by default; add an API key for Claude-quality scoring."),
+    ("3", "Tailor", false, "Selects the best-matching résumé and fills your cover-letter template for that specific role. It only selects your materials — it never writes them."),
+    ("4", "Prep", false, "Pre-fills the application fields it can answer from your profile, and lists the ones only you can answer (it never guesses)."),
+    ("5", "Review", true, "You open each queued application, check the materials, answer the remaining fields, and follow the apply link to the real site."),
+    ("6", "Submit", true, "You submit on the company's site, then click “Record submission” here. The agent never submits for you."),
+    ("7", "Track", true, "As you hear back, record the outcome — no response, rejected, interview or offer — on the Tracker."),
+  ] %}
+  {% for num, name, mine, desc in steps %}
+    <div class="item {{ 'required' if mine else 'optional' }}" style="display:flex;gap:14px;align-items:flex-start">
+      <span style="flex:none;width:26px;height:26px;border-radius:999px;display:flex;
+        align-items:center;justify-content:center;font-weight:700;font-size:13px;
+        {% if mine %}background:var(--warn-soft);color:var(--warn){% else %}background:#efede8;color:var(--muted){% endif %}">{{ num }}</span>
+      <div>
+        <strong>{{ name }}</strong>
+        {% if mine %}<span class="badge b-warn" style="margin-left:6px">you</span>
+        {% else %}<span class="badge b-grey" style="margin-left:6px">automatic</span>{% endif %}
+        <div class="note" style="margin-top:2px">{{ desc }}</div>
+      </div>
+    </div>
+  {% endfor %}
+
+  <h2>What each tab is for</h2>
+  <table>
+    <tbody>
+      <tr><td><a href="/">Dashboard</a></td><td>At-a-glance counts, run the pipeline, and seed demo data.</td></tr>
+      <tr><td><a href="/jobs">Jobs</a></td><td>Every role found, ranked by score. <strong>Prepare</strong> one to override the scorer, or <strong>Skip</strong> it.</td></tr>
+      <tr><td><a href="/review">Review queue</a></td><td>The human gate — finish each prepared application and record that you submitted.</td></tr>
+      <tr><td><a href="/tracker">Tracker</a></td><td>Applications you've submitted and the outcome you record for each.</td></tr>
+      <tr><td><a href="/materials">Materials</a></td><td>Your résumés and cover letters. The agent only <em>selects</em> these — you author them.</td></tr>
+      <tr><td><a href="/companies">Companies</a></td><td>The watchlist the pipeline sources roles from; activate or deactivate any entry.</td></tr>
+      <tr><td><a href="/profile">Profile</a></td><td>The facts the agent is allowed to use about you. Better profile → better prep.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>The review queue is the human gate</h2>
+  <div class="card">
+    <p style="margin:0 0 8px">
+      This is the heart of the design. The agent prepares everything it safely can,
+      then <strong>stops</strong>. On each application you'll see the chosen résumé,
+      the rendered cover letter, the fields it pre-filled, and — separately — the
+      <strong>fields only you can answer</strong> (screening questions, anything not
+      in your profile).
+    </p>
+    <p class="note" style="margin:0">
+      You complete those, submit on the company's own site, and click
+      <strong>Record submission</strong>. That button only logs that <em>you</em>
+      submitted — there is no code path anywhere that sends an application for you.
+    </p>
+  </div>
+
+  <h2>Tips &amp; troubleshooting</h2>
+  <div class="item">
+    <strong>Ran the pipeline but nothing got queued?</strong>
+    <div class="note">The banner tells you why — usually a missing résumé or an incomplete profile. Add a résumé in <a href="/materials">Materials</a> or complete your <a href="/profile">Profile</a>, then run again.</div>
+  </div>
+  <div class="item">
+    <strong>Want a role the scorer skipped?</strong>
+    <div class="note">Open <a href="/jobs">Jobs</a> and click <strong>Prepare</strong> on it — that overrides the score and runs tailor + prep just for that role.</div>
+  </div>
+  <div class="item">
+    <strong>Scores feel basic?</strong>
+    <div class="note">Without a key, scoring uses a fast offline heuristic. Set <code>ANTHROPIC_API_KEY</code> (and install the <code>anthropic</code> SDK) to enable Claude-quality scoring and rationales.</div>
+  </div>
+  <div class="item">
+    <strong>Something looks broken?</strong>
+    <div class="note">Visit <a href="/healthz">/healthz</a> for diagnostics — it reports the database driver, connectivity, and whether templates loaded.</div>
+  </div>
+{% endblock %}

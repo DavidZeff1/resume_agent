@@ -249,6 +249,16 @@ async def favicon(request):
     return Response(status_code=204)
 
 
+async def guide(request):
+    """Static how-to-use page.
+
+    Deliberately DB-free so the help is always available — even if the database
+    or another page is the thing that's broken, a user can still read how the
+    tool works and where to look (it points at /healthz for diagnostics).
+    """
+    return templates.TemplateResponse(request, "guide.html", {"active": "guide"})
+
+
 async def jobs(request):
     with AgentContext.create() as ctx:
         rows = ctx.conn.execute(
@@ -675,6 +685,7 @@ def create_app(debug: bool | None = None) -> Starlette:
         Route("/", dashboard, name="dashboard"),
         Route("/healthz", healthz, name="healthz"),
         Route("/favicon.ico", favicon, name="favicon"),
+        Route("/guide", guide, name="guide"),
         Route("/jobs", jobs, name="jobs"),
         Route("/jobs/{id:int}/prepare", job_prepare, methods=["POST"], name="job_prepare"),
         Route("/jobs/{id:int}/skip", job_skip, methods=["POST"], name="job_skip"),
