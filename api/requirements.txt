@@ -22,8 +22,3 @@ python-multipart>=0.0.9
 # explains it). Keep .python-version and this marker in sync.
 libsql-experimental>=0.0.30; python_version < "3.13"
 
-streamlit
-PyPDF2
-
-pip install -r requirements.txt
-streamlit run app.py
