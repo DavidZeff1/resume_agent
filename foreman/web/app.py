@@ -75,16 +75,22 @@ form.run .opt{display:block;font-weight:400;margin:.4rem 0}
 """
 
 
-def _layout(title: str, body: str, *, refresh: bool = False) -> str:
+def _layout(title: str, body: str, *, refresh: bool = False, prefix: str = "") -> str:
     meta = "<meta http-equiv='refresh' content='2'>" if refresh else ""
+    # When mounted alongside another app (e.g. job·agent on Vercel at "/"),
+    # ``prefix`` is set so every link stays inside the Foreman mount; a back-link
+    # to the host app is shown too. Standalone (local) ``prefix`` is "".
+    back = "<a href='/'>← job·agent</a>" if prefix else ""
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         f"{meta}<title>foreman — {html.escape(title)}</title><style>{_CSS}</style></head><body>"
         "<nav><span class='b'><em>fore</em>man</span>"
-        "<a href='/'>Dashboard</a><a href='/review'>Review queue</a>"
-        "<a href='/tasks'>Tasks</a><a href='/runs'>Runs &amp; cost</a><a href='/stats'>Stats</a>"
-        "<a class='cta' href='/new'>+ New run</a></nav>"
+        f"{back}"
+        f"<a href='{prefix}/'>Dashboard</a><a href='{prefix}/review'>Review queue</a>"
+        f"<a href='{prefix}/tasks'>Tasks</a><a href='{prefix}/runs'>Runs &amp; cost</a>"
+        f"<a href='{prefix}/stats'>Stats</a>"
+        f"<a class='cta' href='{prefix}/new'>+ New run</a></nav>"
         f"<main>{body}</main></body></html>"
     )
 
@@ -93,11 +99,26 @@ def _pill(status: str) -> str:
     return f"<span class='pill s-{html.escape(status)}'>{html.escape(status)}</span>"
 
 
-def create_app(db_path: str | None = None) -> Starlette:
+def create_app(db_path: str | None = None, prefix: str = "") -> Starlette:
+    """Build the control-panel app.
+
+    ``prefix`` makes every generated link absolute under that path so the app can
+    be mounted under a sub-path (e.g. ``Mount("/foreman", ...)`` next to another
+    app). The *routes* below stay unprefixed — a ``Mount`` strips the prefix
+    before this app sees the request. Standalone (local) callers leave it "".
+    """
     db_path = db_path or str(default_db_path())
+    prefix = prefix.rstrip("/")
 
     def conn():
         return get_conn(db_path)
+
+    def u(path: str = "") -> str:
+        """A link/redirect target, prefixed for the mount."""
+        return f"{prefix}{path}"
+
+    def layout(title: str, body: str, *, refresh: bool = False) -> str:
+        return _layout(title, body, refresh=refresh, prefix=prefix)
 
     # -- dashboard / control panel ------------------------------------------ #
     async def dashboard(request):
@@ -113,15 +134,15 @@ def create_app(db_path: str | None = None) -> Starlette:
         )
         rows = "".join(
             f"<tr><td>#{t['id']}</td>"
-            f"<td><a class='t' href='/task/{t['id']}'>{html.escape(t['title'])}</a></td>"
+            f"<td><a class='t' href='{u('/task/')}{t['id']}'>{html.escape(t['title'])}</a></td>"
             f"<td>{_pill(t['status'])}</td></tr>"
             for t in tasks[:8]
         ) or "<tr><td colspan=3 class='empty'>no runs yet — click “Run the sample task”.</td></tr>"
         hero = (
             "<div class='hero'>"
-            "<form method='post' action='/demo' style='display:inline'>"
+            f"<form method='post' action='{u('/demo')}' style='display:inline'>"
             "<button class='btn' type='submit'>▶ Run the sample task</button></form>"
-            "<a class='btn ghost' href='/new'>+ Start a new run</a></div>"
+            f"<a class='btn ghost' href='{u('/new')}'>+ Start a new run</a></div>"
         )
         body = (
             "<h1>Foreman</h1>"
@@ -130,14 +151,14 @@ def create_app(db_path: str | None = None) -> Starlette:
             f"{hero}<div class='cards'>{cards}</div>"
             f"<h2>Your runs</h2><table><tr><th>#</th><th>task</th><th>status</th></tr>{rows}</table>"
         )
-        return HTMLResponse(_layout("dashboard", body, refresh=any_running))
+        return HTMLResponse(layout("dashboard", body, refresh=any_running))
 
     # -- new run form ------------------------------------------------------- #
     async def new_form(request):
         body = (
             "<h1>Start a new run</h1>"
             "<p class='sub'>Describe what you want done, pick where and who decides, then run it.</p>"
-            "<form class='run' method='post' action='/new'>"
+            f"<form class='run' method='post' action='{u('/new')}'>"
             "<label>Title</label><input type='text' name='title' required placeholder='e.g. Fix the broken add() function'>"
             "<label>Description (optional)</label><textarea name='description' rows='3' "
             "placeholder='What should the result be? Any details the agents need.'></textarea>"
@@ -156,9 +177,9 @@ def create_app(db_path: str | None = None) -> Starlette:
             "<select name='model'><option>claude-opus-4-8</option>"
             "<option>claude-sonnet-4-6</option><option>claude-haiku-4-5</option></select>"
             "<p style='margin-top:1.2rem'><button class='btn' type='submit'>Run it ▶</button> "
-            "<a class='btn ghost' href='/'>Cancel</a></p></form>"
+            f"<a class='btn ghost' href='{u('/')}'>Cancel</a></p></form>"
         )
-        return HTMLResponse(_layout("new run", body))
+        return HTMLResponse(layout("new run", body))
 
     async def new_submit(request):
         form = await request.form()
@@ -174,7 +195,7 @@ def create_app(db_path: str | None = None) -> Starlette:
         task_id = _repo.create_task(c, title=title, description=description, source="ui")
         start_run(task_id, db_path=db_path, target_repo=repo or None,
                   policy=policy, model=model, seed_files=seed)
-        return RedirectResponse(url=f"/task/{task_id}", status_code=303)
+        return RedirectResponse(url=f"{u('/task/')}{task_id}", status_code=303)
 
     async def run_demo(request):
         c = conn()
@@ -182,41 +203,41 @@ def create_app(db_path: str | None = None) -> Starlette:
                                    description="add(a,b) must return a+b; the test must pass.",
                                    source="demo")
         start_run(task_id, db_path=db_path, seed_files=BUGGY_FILES, policy="mock")
-        return RedirectResponse(url=f"/task/{task_id}", status_code=303)
+        return RedirectResponse(url=f"{u('/task/')}{task_id}", status_code=303)
 
     # -- review queue ------------------------------------------------------- #
     async def review(request):
         c = conn()
         rows = "".join(
             f"<tr><td>#{t['id']}</td>"
-            f"<td><a class='t' href='/task/{t['id']}'>{html.escape(t['title'])}</a></td>"
+            f"<td><a class='t' href='{u('/task/')}{t['id']}'>{html.escape(t['title'])}</a></td>"
             f"<td class='mono'>{html.escape(t['pr_ref'] or '-')}</td><td>{_pill(t['status'])}</td></tr>"
             for t in _repo.list_tasks(c, status=TaskStatus.PR_READY)
         ) or "<tr><td colspan=4 class='empty'>nothing waiting — the queue is clear.</td></tr>"
         body = ("<h1>Review queue</h1><p class='sub'>Green, reviewed work — one click from merge "
                 "(the only human step).</p><table>"
                 f"<tr><th>#</th><th>task</th><th>branch</th><th>status</th></tr>{rows}</table>")
-        return HTMLResponse(_layout("review queue", body))
+        return HTMLResponse(layout("review queue", body))
 
     async def tasks(request):
         c = conn()
         rows = "".join(
             f"<tr><td>#{t['id']}</td>"
-            f"<td><a class='t' href='/task/{t['id']}'>{html.escape(t['title'])}</a></td>"
+            f"<td><a class='t' href='{u('/task/')}{t['id']}'>{html.escape(t['title'])}</a></td>"
             f"<td>{_pill(t['status'])}</td><td class='mono'>{html.escape(t['pr_ref'] or '-')}</td></tr>"
             for t in _repo.list_tasks(c)
         ) or "<tr><td colspan=4 class='empty'>no tasks yet</td></tr>"
         any_running = any(t["status"] in _RUNNING for t in _repo.list_tasks(c))
         body = ("<h1>Tasks</h1><table>"
                 f"<tr><th>#</th><th>title</th><th>status</th><th>branch</th></tr>{rows}</table>")
-        return HTMLResponse(_layout("tasks", body, refresh=any_running))
+        return HTMLResponse(layout("tasks", body, refresh=any_running))
 
     async def task_detail(request):
         c = conn()
         tid = int(request.path_params["id"])
         t = _repo.get_task(c, tid)
         if not t:
-            return HTMLResponse(_layout("not found", "<h1>Task not found</h1>"), status_code=404)
+            return HTMLResponse(layout("not found", "<h1>Task not found</h1>"), status_code=404)
         running = t["status"] in _RUNNING
 
         if running:
@@ -252,7 +273,7 @@ def create_app(db_path: str | None = None) -> Starlette:
 
         merge_btn = ""
         if t["status"] == TaskStatus.PR_READY:
-            merge_btn = (f"<form method='post' action='/task/{tid}/merge'>"
+            merge_btn = (f"<form method='post' action='{u('/task/')}{tid}/merge'>"
                          "<button class='btn warm' type='submit'>Merge this (I approve) ✓</button></form>")
 
         body = (f"<h1>#{tid} · {html.escape(t['title'])}</h1>{banner}"
@@ -262,7 +283,7 @@ def create_app(db_path: str | None = None) -> Starlette:
                 f"<th>tests</th><th>verdict</th><th>cost</th></tr>{runs}</table>"
                 f"<h2>Activity</h2><div class='feed'>{feed}</div>"
                 f"<h2>Proposed change (diff)</h2>{diff_html}")
-        return HTMLResponse(_layout(f"task {tid}", body, refresh=running))
+        return HTMLResponse(layout(f"task {tid}", body, refresh=running))
 
     async def merge(request):
         c = conn()
@@ -270,15 +291,15 @@ def create_app(db_path: str | None = None) -> Starlette:
         try:
             record_merge(c, tid)
         except Exception as exc:
-            return HTMLResponse(_layout("error",
+            return HTMLResponse(layout("error",
                 f"<h1>Could not merge</h1><p>{html.escape(str(exc))}</p>"
-                f"<p><a class='btn ghost' href='/task/{tid}'>Back</a></p>"), status_code=400)
-        return RedirectResponse(url=f"/task/{tid}", status_code=303)
+                f"<p><a class='btn ghost' href='{u('/task/')}{tid}'>Back</a></p>"), status_code=400)
+        return RedirectResponse(url=f"{u('/task/')}{tid}", status_code=303)
 
     async def runs(request):
         c = conn()
         rows = "".join(
-            f"<tr><td><a class='t' href='/task/{r['task_id']}'>#{r['task_id']}</a></td>"
+            f"<tr><td><a class='t' href='{u('/task/')}{r['task_id']}'>#{r['task_id']}</a></td>"
             f"<td>{html.escape(r['role'] or '')}</td><td class='mono'>{html.escape(r['model'] or '')}</td>"
             f"<td>{r['turns']}</td><td>{r['input_tokens']}/{r['output_tokens']}</td>"
             f"<td>${r['cost_usd']:.4f}</td></tr>"
@@ -286,13 +307,13 @@ def create_app(db_path: str | None = None) -> Starlette:
         ) or "<tr><td colspan=6 class='empty'>no runs yet</td></tr>"
         body = ("<h1>Runs &amp; cost</h1><table><tr><th>task</th><th>role</th><th>model</th>"
                 f"<th>turns</th><th>tok in/out</th><th>cost</th></tr>{rows}</table>")
-        return HTMLResponse(_layout("runs", body))
+        return HTMLResponse(layout("runs", body))
 
     async def stats(request):
         c = conn()
         rows = "".join(f"<tr><td class='mono'>{html.escape(k)}</td><td>{html.escape(str(v))}</td></tr>"
                        for k, v in compute_stats(c).items())
-        return HTMLResponse(_layout("stats", f"<h1>Analytics</h1><table>{rows}</table>"))
+        return HTMLResponse(layout("stats", f"<h1>Analytics</h1><table>{rows}</table>"))
 
     async def healthz(request):
         try:

@@ -131,6 +131,35 @@ under the deployment's **Logs**, or via `vercel logs <url>`.
 - **Still never submits.** There is no submit-to-site code path here either; the
   "record submission" button only logs that *you* submitted.
 
+## Foreman (mounted at `/foreman`) — view/demo only
+
+The Foreman control panel is mounted alongside job·agent at **`/foreman`** (also
+linked from the job·agent nav). It defaults its state to `/tmp` and runs
+synchronously, set via two env vars that already default in `api/index.py` (so no
+Vercel config is required):
+
+| Variable | Default | Why |
+|---|---|---|
+| `FOREMAN_DATA_DIR` | `/tmp/foreman` | Only `/tmp` is writable on Vercel. |
+| `FOREMAN_SYNC` | `1` | Vercel freezes the function after the response, so Foreman's default background-thread worker would never make progress; this runs each task inline instead. |
+
+On cold start the function **seeds one finished offline sample** (a `python
+check.py` truth signal — no pytest, git, network, or API key) so the dashboard,
+runs, stats, and diff render with real content.
+
+What does **not** work on Vercel, by design — Foreman is built to run locally:
+
+- **No persistence across requests.** The ledger lives in ephemeral `/tmp` and
+  isn't shared between serverless instances, so a run you start may not be visible
+  after the redirect. Only the cold-start sample is reliably present.
+- **Real (`llm`) runs and real git repos don't work.** They need a long-lived
+  process, the `anthropic` SDK + key, `git worktree`, and a persistent disk —
+  none of which exist on Vercel. They degrade gracefully to `needs_human`.
+
+**To actually run Foreman**, use it locally — double-click `Foreman.command`, or
+`python -m foreman web` — where it has a real filesystem, git, and a persistent
+ledger.
+
 ## Alternative: run it locally against Turso (no Vercel)
 
 If the serverless constraints get in the way, you get the same shared-state

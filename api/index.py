@@ -42,6 +42,13 @@ if str(_ROOT) not in sys.path:
 # Default state to a writable location; real persistence comes from JOBAGENT_DB_URL.
 os.environ.setdefault("JOBAGENT_DATA_DIR", "/tmp/jobagent")
 
+# Foreman is mounted alongside job·agent at /foreman (view/demo only — see
+# _build_app). Its ledger must live on the one writable path (/tmp), and runs must
+# be synchronous: Vercel freezes the function after the response, so Foreman's
+# default background-thread worker would never make progress here.
+os.environ.setdefault("FOREMAN_DATA_DIR", "/tmp/foreman")
+os.environ.setdefault("FOREMAN_SYNC", "1")
+
 
 def _diagnostic_app(startup_traceback: str):
     """A pure-ASGI handler (no imports) that reports why startup failed."""
@@ -69,16 +76,67 @@ def _diagnostic_app(startup_traceback: str):
     return app
 
 
+def _seed_foreman(db_path: str) -> None:
+    """Populate the Foreman ledger with one finished offline sample.
+
+    The mounted Foreman UI is view/demo only on Vercel (no persistent DB, no git,
+    no long-lived worker). Seeding one completed task at cold start means every
+    instance serves a populated, navigable dashboard instead of an empty shell.
+
+    The sample is fully offline: a temp workspace whose truth signal is
+    ``python check.py`` (no pytest, no git, no network, no API key), so it runs to
+    ``pr_ready`` even inside the serverless sandbox. Best-effort — an empty
+    dashboard is an acceptable fallback, so this never raises into the build.
+    """
+    try:
+        from foreman import repo as _frepo
+        from foreman.db import get_conn
+
+        if _frepo.list_tasks(get_conn(db_path)):
+            return  # already seeded on this (warm) instance
+
+        from foreman.demo import BUGGY_FILES, TASK
+        from foreman.runner import run_task
+
+        run_task(title=TASK["title"], description=TASK["description"], source="demo",
+                 policy="mock", seed_files=BUGGY_FILES, db_path=db_path)
+    except Exception:  # pragma: no cover - cosmetic seeding only
+        pass
+
+
 def _build_app():
     """Build the real ASGI app, or a diagnostic fallback if construction fails.
+
+    The app is job·agent (served at ``/``) with the Foreman control panel mounted
+    at ``/foreman``. Foreman's mount is inserted into job·agent's own router so
+    job·agent's auth middleware and error handlers cover both with no behaviour
+    change. Foreman runs view/demo only here (see ``_seed_foreman``); it is fully
+    functional locally via ``Foreman.command`` / ``python -m foreman web``.
 
     All the fallible work is contained here so the module body can end in a
     single, statically-detectable ``app = _build_app()`` (see module docstring).
     """
     try:
+        from pathlib import Path
+
+        from starlette.routing import Mount
+
         from jobagent.web.app import create_app
 
-        return create_app()
+        app = create_app()
+
+        try:
+            from foreman.web.app import create_app as create_foreman_app
+
+            foreman_db = str(Path(os.environ["FOREMAN_DATA_DIR"]) / "foreman.sqlite3")
+            _seed_foreman(foreman_db)
+            app.router.routes.insert(
+                0, Mount("/foreman", app=create_foreman_app(db_path=foreman_db, prefix="/foreman"))
+            )
+        except Exception:  # Foreman is additive — never let it break job·agent.
+            pass
+
+        return app
     except Exception:  # pragma: no cover - exercised only on a broken deploy
         return _diagnostic_app(traceback.format_exc())
 
