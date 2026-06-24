@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jobagent — deck</title>
+<style>
+:root{
+  --paper:#f3f0e9;
+  --paper2:#ece8dd;
+  --card:#fbfaf6;
+  --ink:#17150f;
+  --ink2:#3a372e;
+  --mut:#8d877a;
+  --mut2:#b3ad9e;
+  --line:#d9d4c6;
+  --line2:#cac4b2;
+  /* two-colour semantic system: cool = machine/automated, warm = human */
+  --cool:#2f4a78;
+  --cool-soft:rgba(47,74,120,.08);
+  --warm:#b5481f;
+  --warm-soft:rgba(181,72,31,.08);
+  --green:#3f6b3a;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{
+  scroll-snap-type:y mandatory;
+  scroll-behavior:smooth;
+  height:100%;
+}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* ── persistent chrome ── */
+.chrome{position:fixed;z-index:50;font-family:var(--mono);font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);}
+.chrome.tl{top:26px;left:34px;}
+.chrome.tr{top:26px;right:34px;}
+.chrome .brand{color:var(--ink);font-weight:600;}
+.chrome .brand b{color:var(--warm);font-weight:600;}
+.progress{position:fixed;left:0;top:0;height:2px;background:var(--ink);width:0;z-index:60;transition:width .15s linear;}
+
+/* dot nav */
+.dots{position:fixed;right:28px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:13px;}
+.dots button{appearance:none;border:none;background:none;cursor:pointer;width:11px;height:11px;display:flex;align-items:center;justify-content:center;padding:0;}
+.dots button::after{content:'';width:8px;height:8px;border-radius:50%;border:1px solid var(--mut2);transition:.25s;}
+.dots button.on::after{background:var(--ink);border-color:var(--ink);transform:scale(1.25);}
+@media(max-width:780px){.dots{display:none;}.chrome{font-size:.6rem;}.chrome.tl{left:18px;}.chrome.tr{right:18px;}}
+
+/* ── slide frame ── */
+.slide{
+  min-height:100vh;
+  scroll-snap-align:start;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:8vh 6.5vw 7vh;
+  position:relative;overflow:hidden;
+}
+.kick{font-family:var(--mono);font-size:.82rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:1rem;margin-bottom:1.8rem;}
+.kick::before{content:'';width:42px;height:1px;background:var(--line2);}
+.kick b{color:var(--cool);font-weight:600;}
+
+h2{font-size:clamp(2.6rem,5.5vw,4.4rem);font-weight:600;letter-spacing:-.025em;line-height:1.06;}
+.lede{font-size:1.16rem;color:var(--ink2);max-width:50ch;line-height:1.7;margin-top:1.4rem;}
+.lede .q{font-family:var(--mono);font-size:.82rem;color:var(--cool);}
+
+/* watermark numeral */
+.wm{position:absolute;font-family:var(--serif);font-size:32vh;line-height:1;color:var(--ink);opacity:.035;right:5vw;bottom:-4vh;pointer-events:none;user-select:none;font-style:italic;}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+.slide.in .reveal{opacity:1;transform:none;}
+.slide.in .reveal:nth-child(2){transition-delay:.07s;}
+.slide.in .reveal:nth-child(3){transition-delay:.14s;}
+.slide.in .reveal:nth-child(4){transition-delay:.21s;}
+.slide.in .reveal:nth-child(5){transition-delay:.28s;}
+
+/* ── explain popovers ── */
+.explain{position:absolute;top:6.8vh;right:6.5vw;z-index:40;}
+.ex-btn{appearance:none;cursor:pointer;font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);background:var(--card);border:1px solid var(--line2);border-radius:100px;padding:.5em 1em;display:inline-flex;align-items:center;gap:.5em;transition:color .2s,border-color .2s,box-shadow .2s;}
+.ex-btn:hover,.explain:focus-within .ex-btn{color:var(--ink);border-color:var(--ink);box-shadow:0 6px 18px -10px rgba(23,21,15,.4);}
+.exi{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid currentColor;border-radius:50%;font-family:var(--serif);font-style:italic;font-size:.66rem;line-height:1;}
+.ex-panel{position:absolute;top:calc(100% + 12px);right:0;z-index:41;width:clamp(330px,34vw,480px);background:var(--card);border:1px solid var(--line2);border-radius:15px;padding:1.5rem 1.65rem;text-align:left;box-shadow:0 28px 64px -30px rgba(23,21,15,.6),0 6px 18px -10px rgba(23,21,15,.22);opacity:0;transform:translateY(-8px) scale(.985);transform-origin:top right;pointer-events:none;transition:opacity .22s ease,transform .22s ease;max-height:70vh;overflow:auto;}
+.ex-panel::before{content:'';position:absolute;top:-14px;left:0;right:0;height:14px;}
+.explain:hover .ex-panel,.explain:focus-within .ex-panel{opacity:1;transform:none;pointer-events:auto;}
+.ex-h{font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--cool);margin-bottom:.95rem;padding-bottom:.75rem;border-bottom:1px solid var(--line);}
+.ex-panel p{font-size:.93rem;line-height:1.68;color:var(--ink2);margin-bottom:.8rem;}
+.ex-panel p:last-child{margin-bottom:0;}
+.ex-panel code{font-family:var(--mono);font-size:.82rem;color:var(--cool);}
+.ex-panel b{color:var(--ink);font-weight:600;}
+
+/* ── viz caption ── */
+.vizcap{font-family:var(--mono);font-size:.74rem;color:var(--mut);margin-top:1.1rem;letter-spacing:.02em;line-height:1.6;}
+.vizcap code{color:var(--cool);}
+.vizcap b{color:var(--ink);font-weight:600;}
+
+/* ── prep field split ── */
+.prep{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.8rem;}
+.pf{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:1.4rem 1.5rem;}
+.pf.auto{border-top:3px solid var(--green);}
+.pf.you{border-top:3px solid var(--warm);}
+.pfh{font-family:var(--mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
+.pf.auto .pfh{color:var(--green);}
+.pf.you .pfh{color:var(--warm);}
+.pfh small{margin-left:auto;font-family:var(--sans);text-transform:none;letter-spacing:0;font-size:.76rem;color:var(--mut);font-weight:400;}
+.pfrow{display:flex;align-items:center;gap:.75rem;padding:.52rem 0;border-bottom:1px solid var(--line);font-size:.96rem;}
+.pfrow:last-child{border-bottom:none;}
+.pfrow .mk{width:19px;height:19px;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.74rem;font-weight:700;}
+.pf.auto .mk{background:rgba(63,107,58,.12);color:var(--green);}
+.pf.you .mk{background:var(--warm-soft);color:var(--warm);}
+.pfrow .fl{color:var(--ink2);}
+.pfrow .fv{margin-left:auto;font-family:var(--mono);font-size:.76rem;color:var(--mut);}
+
+/* ── layered architecture ── */
+.arch2{display:grid;grid-template-columns:1.05fr .95fr;gap:2.4rem;margin-top:1.6rem;align-items:center;}
+
+/* ════ S1 TITLE ════ */
+#s1{justify-content:space-between;padding-top:13vh;padding-bottom:8vh;}
+.title-top{font-family:var(--mono);font-size:.84rem;letter-spacing:.22em;text-transform:uppercase;color:var(--mut);}
+.title-main{display:flex;flex-direction:column;}
+.title-main .lockup{font-size:clamp(4.2rem,13vw,11.5rem);font-weight:600;letter-spacing:-.045em;line-height:.92;}
+.title-main .lockup b{color:var(--warm);font-weight:600;}
+.title-main .say{font-family:var(--serif);font-style:italic;font-size:clamp(1.8rem,4vw,3.1rem);color:var(--ink2);margin-top:1.8rem;letter-spacing:-.01em;max-width:24ch;line-height:1.25;}
+.title-foot{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;font-family:var(--mono);font-size:.82rem;letter-spacing:.08em;color:var(--mut);text-transform:uppercase;}
+.title-foot .r{display:flex;gap:1.6rem;}
+
+/* ════ S2 PRINCIPLE ════ */
+.split{display:grid;grid-template-columns:1fr 1px 1fr;margin-top:1.8rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.split .col{padding:2.4rem 2.2rem;}
+.split .rule{background:var(--line);}
+.split .tag{font-family:var(--mono);font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;}
+.split .tag .sq{width:11px;height:11px;border-radius:2px;}
+.col.cool .tag{color:var(--cool);} .col.cool .sq{background:var(--cool);}
+.col.warm .tag{color:var(--warm);} .col.warm .sq{background:var(--warm);}
+.split h3{font-size:2rem;font-weight:600;letter-spacing:-.02em;margin-bottom:.6rem;}
+.split .stages{font-family:var(--mono);font-size:1.05rem;color:var(--ink2);line-height:1.9;}
+.split .conseq{font-size:1rem;color:var(--mut);margin-top:1.1rem;line-height:1.6;max-width:34ch;}
+.principle-foot{font-family:var(--serif);font-style:italic;font-size:1.5rem;color:var(--ink2);margin-top:2.2rem;max-width:62ch;line-height:1.5;}
+.principle-foot b{font-style:normal;font-weight:600;color:var(--ink);border-bottom:2px solid var(--warm);}
+
+/* ════ diagrams ════ */
+.diagram{margin-top:2rem;overflow-x:auto;padding-bottom:.5rem;}
+.diagram svg{display:block;margin:0 auto;}
+
+/* ════ S4 GATE (punch) ════ */
+#s4{align-items:flex-start;}
+.gate-state{font-family:var(--mono);font-size:.88rem;letter-spacing:.2em;text-transform:uppercase;color:var(--warm);margin-bottom:2rem;display:flex;align-items:center;gap:.9rem;}
+.gate-state::before{content:'';width:42px;height:1px;background:var(--warm);}
+.gate-big{font-size:clamp(3rem,7.8vw,6.4rem);font-weight:600;letter-spacing:-.035em;line-height:1.04;max-width:16ch;}
+.gate-big em{font-style:normal;color:var(--warm);}
+.gate-sub{margin-top:2.6rem;display:flex;gap:2.8rem;flex-wrap:wrap;font-family:var(--mono);font-size:.92rem;color:var(--mut);max-width:90ch;}
+.gate-sub div{max-width:26ch;line-height:1.55;}
+.gate-sub div b{display:block;color:var(--ink);font-size:1.12rem;margin-bottom:.3rem;letter-spacing:-.01em;font-weight:600;}
+
+/* ════ S6 GUARDRAILS list ════ */
+.glist{margin-top:1.6rem;border-top:1px solid var(--line);}
+.grow{display:grid;grid-template-columns:auto 1fr auto;gap:1.8rem;align-items:baseline;padding:1.35rem .2rem;border-bottom:1px solid var(--line);transition:background .2s;}
+.grow:hover{background:var(--card);}
+.grow .gn{font-family:var(--mono);font-size:.88rem;color:var(--mut2);}
+.grow .gt{font-size:1.32rem;font-weight:600;letter-spacing:-.01em;}
+.grow .gt span{display:block;font-weight:400;font-size:.94rem;color:var(--mut);margin-top:.3rem;letter-spacing:0;line-height:1.5;}
+.grow .gt code{font-family:var(--mono);font-size:.84rem;color:var(--cool);}
+.grow .gw{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green);white-space:nowrap;border:1px solid rgba(63,107,58,.3);border-radius:100px;padding:.34em .8em;align-self:center;}
+
+/* ════ S7 ARCHITECTURE ════ */
+.arch{display:grid;grid-template-columns:.85fr 1.15fr;gap:2.6rem;margin-top:1.8rem;align-items:start;}
+.arch .h{font-family:var(--mono);font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin-bottom:1rem;}
+.core{display:flex;flex-direction:column;}
+.core .cr{display:grid;grid-template-columns:auto 1fr auto;gap:.9rem;align-items:center;padding:.78rem 0;border-bottom:1px solid var(--line);}
+.core .cr:first-of-type{border-top:1px solid var(--line);}
+.core .cd{width:8px;height:8px;border-radius:2px;}
+.core .cn{font-family:var(--mono);font-size:.95rem;color:var(--ink);}
+.core .cnote{font-size:.84rem;color:var(--mut);text-align:right;}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
+.mod{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:.95rem 1.1rem;}
+.mod .mn{font-family:var(--mono);font-size:.9rem;color:var(--cool);}
+.mod .md{font-size:.84rem;color:var(--mut);margin-top:.32rem;line-height:1.45;}
+.mod.api{grid-column:span 2;border-color:rgba(47,74,120,.28);background:var(--cool-soft);}
+
+/* ════ S8 SCORING ════ */
+.scards{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;margin-top:1.8rem;}
+.scard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:2rem 2rem;}
+.scard .st{font-family:var(--mono);font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:var(--cool);margin-bottom:1rem;display:flex;justify-content:space-between;}
+.scard .st .pill{color:var(--mut);letter-spacing:.08em;}
+.scard h3{font-size:1.5rem;font-weight:600;letter-spacing:-.015em;margin-bottom:1.2rem;}
+.scard ul{list-style:none;display:flex;flex-direction:column;gap:.7rem;}
+.scard li{font-size:1rem;color:var(--ink2);padding-left:1.3rem;position:relative;line-height:1.5;}
+.scard li::before{content:'';position:absolute;left:0;top:.6em;width:6px;height:6px;border-radius:50%;background:var(--cool);}
+.scard li code{font-family:var(--mono);font-size:.84rem;color:var(--cool);}
+
+/* ════ S9 SOURCING ════ */
+.ats{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-top:1.8rem;}
+.atc{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:1.5rem 1.3rem;text-align:left;}
+.atc .an{font-size:1.2rem;font-weight:600;letter-spacing:-.01em;}
+.atc .at{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;margin-top:.5rem;}
+.atc.json{border-bottom:2px solid var(--green);} .atc.json .at{color:var(--green);}
+.atc.html{border-bottom:2px solid var(--warm);} .atc.html .at{color:var(--warm);}
+
+/* ════ S10 WEBUI ════ */
+.ui{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin-top:1.8rem;}
+.uic{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1.3rem 1.35rem;}
+.uic.gate{border-color:rgba(181,72,31,.4);background:var(--warm-soft);}
+.uic .un{font-size:1.02rem;font-weight:600;letter-spacing:-.01em;}
+.uic.gate .un{color:var(--warm);}
+.uic .ud{font-size:.85rem;color:var(--mut);margin-top:.35rem;line-height:1.5;}
+
+/* ════ S11 RUN ════ */
+.run{display:grid;grid-template-columns:.8fr 1.2fr;gap:1.8rem;margin-top:1.8rem;align-items:start;}
+.deploy{display:flex;flex-direction:column;gap:.8rem;}
+.dep{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:1.3rem 1.4rem;}
+.dep .dt{font-size:1.12rem;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:.6rem;}
+.dep .dt .b{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cool);border:1px solid var(--line2);border-radius:100px;padding:.2em .6em;}
+.dep .dd{font-size:.9rem;color:var(--mut);margin-top:.45rem;line-height:1.55;}
+.dep .dd code{font-family:var(--mono);font-size:.8rem;color:var(--cool);}
+.term{background:#16140f;border-radius:13px;padding:1.6rem 1.7rem;font-family:var(--mono);font-size:.92rem;line-height:1.95;overflow-x:auto;box-shadow:0 18px 40px -22px rgba(23,21,15,.5);}
+.term .dotbar{display:flex;gap:6px;margin-bottom:1rem;}
+.term .dotbar i{width:9px;height:9px;border-radius:50%;display:block;}
+.term .l{color:#d8d2c4;}
+.term .c{color:#6e6a5d;}
+.term .g{color:#86b97f;}
+.term .a{color:#7fa7d8;}
+.term .y{color:#d8b46a;}
+
+/* ════ S12 CLOSING ════ */
+#s12{justify-content:center;}
+.close-say{font-family:var(--serif);font-size:clamp(2.2rem,5vw,3.9rem);line-height:1.28;letter-spacing:-.015em;max-width:20ch;}
+.close-say b{color:var(--warm);font-weight:600;}
+.close-metric{margin-top:2.6rem;border-top:1px solid var(--line);padding-top:1.8rem;display:flex;gap:3.4rem;flex-wrap:wrap;}
+.close-metric div .k{font-family:var(--mono);font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:.5rem;}
+.close-metric div .v{font-size:1.3rem;font-weight:600;letter-spacing:-.01em;}
+.close-metric div .v.warm{color:var(--warm);}
+
+@media(max-width:780px){
+  .slide{padding:13vh 7vw 9vh;}
+  .split{grid-template-columns:1fr;}.split .rule{display:none;}
+  .split .col{border-bottom:1px solid var(--line);padding:1.8rem 0;}
+  .split .col:last-child{border-bottom:none;}
+  .arch,.arch2,.prep,.scards,.run{grid-template-columns:1fr;}
+  .ats,.ui{grid-template-columns:repeat(2,1fr);}
+  .grow{grid-template-columns:auto 1fr;}.grow .gw{display:none;}
+  .wm{display:none;}
+  .explain{top:auto;bottom:16px;right:16px;}
+  .ex-panel{position:fixed;left:5vw;right:5vw;width:auto;top:auto;bottom:68px;max-height:72vh;}
+  .ex-panel::before{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="prog"></div>
+<div class="chrome tl"><span class="brand"><b>job</b>agent</span></div>
+<div class="chrome tr" id="counter">01 / 15</div>
+<div class="dots" id="dots"></div>
+
+<!-- ══════════ 1 · TITLE ══════════ -->
+<section class="slide" id="s1">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — What jobagent is</div>
+      <p><b>jobagent</b> is a local, single-user agent that prepares the whole job-application pipeline and stops at the one irreversible step. It runs on your machine, stores everything in a plain SQLite file, and is driven by a <code>jobagent</code> CLI with an optional local web UI.</p>
+      <p>The core pipeline needs only ordinary libraries — <code>httpx</code>, <code>PyYAML</code>, <code>Jinja2</code>, <code>python-docx</code>, <code>beautifulsoup4</code>. Claude-backed scoring and the Agent-SDK loop are optional extras; nothing essential depends on an API key.</p>
+    </div>
+  </div>
+  <div class="title-top reveal">Autonomous job-application agent · v0.1.0</div>
+  <div class="title-main">
+    <div class="lockup reveal"><b>job</b>agent</div>
+    <div class="say reveal">It prepares the entire application. You make the final click.</div>
+  </div>
+  <div class="title-foot reveal">
+    <div>Local · Persistent · Inspectable</div>
+    <div class="r"><span>Python 3.10+</span><span>SQLite</span><span>Claude Agent SDK</span></div>
+  </div>
+</section>
+
+<!-- ══════════ 2 · PRINCIPLE ══════════ -->
+<section class="slide" id="s2">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — The recoverable / unrecoverable split</div>
+      <p>Sourcing, scoring, tailoring and prep can all be wrong cheaply: a skipped or mis-ranked job costs nothing and can be revisited. So they run fully autonomously, optimised for throughput.</p>
+      <p>Submission is a one-way door — a botched application to a company you wanted can't be retracted, in a small, reference-driven market. It is never optimised for volume.</p>
+      <p>The metric isn't applications sent; it's <b>human-touch rate</b> — the share of prepared apps that still need you. It starts high by design and is lowered later, only per ATS that proves clean.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>01</b> The organizing principle</div>
+  <h2 class="reveal">One asymmetry designs<br>the entire system.</h2>
+
+  <div class="split reveal">
+    <div class="col cool">
+      <div class="tag"><span class="sq"></span>Recoverable</div>
+      <h3>Automate it.</h3>
+      <div class="stages">source · score<br>tailor · prep</div>
+      <div class="conseq">A miss is just a skipped or slightly-off job. No lasting harm — so optimise for throughput.</div>
+    </div>
+    <div class="rule"></div>
+    <div class="col warm">
+      <div class="tag"><span class="sq"></span>Unrecoverable</div>
+      <h3>Keep a human on it.</h3>
+      <div class="stages">review &amp; submit</div>
+      <div class="conseq">A botched application can't be retracted, in a small reference-driven market. Never optimise this for volume.</div>
+    </div>
+  </div>
+
+  <p class="principle-foot reveal">The success metric is not applications submitted. It is <b>human-touch rate</b> — driven down later, per proven site, never by removing the human up front.</p>
+  <div class="wm">§</div>
+</section>
+
+<!-- ══════════ 3 · PIPELINE ══════════ -->
+<section class="slide" id="s3">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — One deterministic pass</div>
+      <p><code>jobagent run</code> executes <b>source → score → tailor → prep → followup</b> in a single deterministic pass (<code>pipeline.run_once</code>) and parks ready applications in the review queue.</p>
+      <p>Source pulls from your finite watchlist; score shortlists or skips with a rationale; tailor attaches the best stored resume and cover letter; prep pre-fills the form and lists what's left for you. Track, follow-up and schedule run on the back half, after you submit.</p>
+      <p>The same five stage functions back both this loop and the optional Agent-SDK loop, so behaviour is identical whichever drives.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>02</b> The pipeline</div>
+  <h2 class="reveal">Eight stages. One command.<br>One human gate.</h2>
+  <div class="diagram reveal">
+    <svg viewBox="0 0 960 210" width="100%" style="max-width:1180px" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#bdb7a6"/></marker>
+        <marker id="arw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#b5481f"/></marker>
+      </defs>
+      <line x1="93" y1="72" x2="153" y2="72" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+      <line x1="213" y1="72" x2="273" y2="72" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+      <line x1="333" y1="72" x2="393" y2="72" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+      <line x1="453" y1="72" x2="503" y2="72" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+      <line x1="597" y1="72" x2="637" y2="72" stroke="#b5481f" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arw)"/>
+      <line x1="717" y1="72" x2="757" y2="72" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+      <line x1="837" y1="72" x2="877" y2="72" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+
+      <!-- automated nodes -->
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <rect x="13" y="44" width="80" height="56" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="53" y="70" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">source</text>
+        <text x="53" y="86" text-anchor="middle" font-size="7.5" fill="#8d877a">ATS boards</text>
+
+        <rect x="153" y="44" width="80" height="56" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="193" y="70" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">score</text>
+        <text x="193" y="86" text-anchor="middle" font-size="7.5" fill="#8d877a">rank · filter</text>
+
+        <rect x="273" y="44" width="80" height="56" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="313" y="70" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">tailor</text>
+        <text x="313" y="86" text-anchor="middle" font-size="7.5" fill="#8d877a">pick resume</text>
+
+        <rect x="393" y="44" width="80" height="56" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="433" y="70" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">prep</text>
+        <text x="433" y="86" text-anchor="middle" font-size="7.5" fill="#8d877a">pre-fill</text>
+
+        <!-- human gate -->
+        <rect x="503" y="36" width="94" height="72" rx="13" fill="rgba(181,72,31,0.07)" stroke="#b5481f" stroke-width="1.5"/>
+        <text x="550" y="66" text-anchor="middle" font-size="11" fill="#b5481f" font-weight="600">review</text>
+        <text x="550" y="80" text-anchor="middle" font-size="11" fill="#b5481f" font-weight="600">+ submit</text>
+        <text x="550" y="97" text-anchor="middle" font-size="7" fill="#c47a5c" letter-spacing="1">YOU</text>
+
+        <rect x="637" y="44" width="80" height="56" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="677" y="70" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">track</text>
+        <text x="677" y="86" text-anchor="middle" font-size="7.5" fill="#8d877a">outcomes</text>
+
+        <rect x="757" y="44" width="80" height="56" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="797" y="68" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">followup</text>
+        <text x="797" y="86" text-anchor="middle" font-size="7.5" fill="#8d877a">drafts</text>
+
+        <rect x="877" y="44" width="80" height="56" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="917" y="68" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">schedule</text>
+        <text x="917" y="86" text-anchor="middle" font-size="7.5" fill="#8d877a">.ics</text>
+
+        <!-- brackets / legend -->
+        <line x1="13" y1="132" x2="473" y2="132" stroke="#cdc7b6" stroke-width="1"/>
+        <line x1="13" y1="128" x2="13" y2="132" stroke="#cdc7b6" stroke-width="1"/>
+        <line x1="473" y1="128" x2="473" y2="132" stroke="#cdc7b6" stroke-width="1"/>
+        <text x="243" y="150" text-anchor="middle" font-size="8.5" fill="#8d877a" letter-spacing="1.5">AUTONOMOUS — jobagent run</text>
+
+        <text x="550" y="150" text-anchor="middle" font-size="8.5" fill="#b5481f" letter-spacing="1.5">HUMAN GATE</text>
+
+        <line x1="637" y1="132" x2="957" y2="132" stroke="#cdc7b6" stroke-width="1"/>
+        <line x1="637" y1="128" x2="637" y2="132" stroke="#cdc7b6" stroke-width="1"/>
+        <line x1="957" y1="128" x2="957" y2="132" stroke="#cdc7b6" stroke-width="1"/>
+        <text x="797" y="150" text-anchor="middle" font-size="8.5" fill="#8d877a" letter-spacing="1.5">AUTONOMOUS</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════ PREP · what's filled vs yours ══════════ -->
+<section class="slide" id="sPrep">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Prep, the guardrail made concrete</div>
+      <p><code>build_prefilled()</code> copies a fixed set of safe facts straight from your stored profile and the selected materials — name, contact, links, the résumé and cover-letter files. Nothing else.</p>
+      <p>Everything judgement-based becomes an <code>unanswered_fields</code> entry routed to you. The categories in <code>NEVER_AUTOFILL_KINDS</code> — motivation, salary, work-auth, demographic, free-text — never enter prefilled data, even when your profile holds a value (it's offered only as a <i>suggestion</i>).</p>
+      <p><code>assert_guardrails()</code> raises if a forbidden key ever crosses that line, and a unit test fails the build if it regresses.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>03</b> Prep</div>
+  <h2 class="reveal">What it fills.<br>What it leaves to you.</h2>
+  <div class="prep reveal">
+    <div class="pf auto">
+      <div class="pfh">Auto-filled <small>from stored profile only</small></div>
+      <div class="pfrow"><span class="mk">✓</span><span class="fl">Full name</span><span class="fv">profile</span></div>
+      <div class="pfrow"><span class="mk">✓</span><span class="fl">Email · Phone</span><span class="fv">profile</span></div>
+      <div class="pfrow"><span class="mk">✓</span><span class="fl">Location</span><span class="fv">profile</span></div>
+      <div class="pfrow"><span class="mk">✓</span><span class="fl">GitHub · LinkedIn · Portfolio</span><span class="fv">profile</span></div>
+      <div class="pfrow"><span class="mk">✓</span><span class="fl">Résumé file</span><span class="fv">tailor</span></div>
+      <div class="pfrow"><span class="mk">✓</span><span class="fl">Cover letter</span><span class="fv">tailor</span></div>
+    </div>
+    <div class="pf you">
+      <div class="pfh">Routed to you <small>never guessed</small></div>
+      <div class="pfrow"><span class="mk">?</span><span class="fl">Why this company?</span><span class="fv">motivation</span></div>
+      <div class="pfrow"><span class="mk">?</span><span class="fl">Salary expectations</span><span class="fv">salary</span></div>
+      <div class="pfrow"><span class="mk">?</span><span class="fl">Work authorization</span><span class="fv">work-auth · suggested</span></div>
+      <div class="pfrow"><span class="mk">?</span><span class="fl">Anything else to add?</span><span class="fv">free-text</span></div>
+      <div class="pfrow"><span class="mk">?</span><span class="fl">Any field missing from profile</span><span class="fv">flagged</span></div>
+    </div>
+  </div>
+  <p class="vizcap reveal"><code>prefilled_data</code> &nbsp;vs&nbsp; <code>unanswered_fields</code> — when a board exposes its real questions (Greenhouse), those replace this default set; the wall between them never moves.</p>
+</section>
+
+<!-- ══════════ 4 · THE GATE (punch) ══════════ -->
+<section class="slide" id="s4">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Why it structurally cannot submit</div>
+      <p>The guardrail isn't a policy — it's a missing capability. <code>pipeline_agent.py</code> hands Claude exactly six tools (source, score, tailor, prep, followup, status) and registers <b>no submit tool</b>; <code>Bash</code>, <code>Write</code> and <code>Edit</code> are explicitly disallowed too.</p>
+      <p>The CLI <code>review submit</code> and the web "record submission" button only flip a status to <code>submitted</code> and stamp the time — neither posts anything to a careers site. A model told to "just apply" still can't: there is no code path from here to a form.</p>
+    </div>
+  </div>
+  <div class="gate-state reveal">queued_for_review → submitted</div>
+  <h2 class="gate-big reveal">There is <em>no</em><br>submit tool.</h2>
+  <div class="gate-sub reveal">
+    <div><b>The agent</b>The SDK loop exposes source, score, tailor, prep, followup, status — and nothing else.</div>
+    <div><b>The "submit" action</b>Only records that <i>you</i> submitted on the real site. No outbound request exists.</div>
+    <div><b>The web button</b>Logs the fact, identical to the CLI. The guardrail holds in every surface.</div>
+  </div>
+  <div class="wm" style="font-style:normal;">↛</div>
+</section>
+
+<!-- ══════════ 5 · STATE MACHINE ══════════ -->
+<section class="slide" id="s5">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — The status state machine</div>
+      <p>Every job moves through a fixed graph defined once in <code>models.py</code>. <code>validate_transition(current, target)</code> rejects anything outside the allowed set with <code>InvalidTransition</code> — so a jump like <code>discovered → submitted</code> is impossible.</p>
+      <p><code>skipped</code> is terminal-but-revisitable (a re-score can pull it back). <code>submitted</code> is reachable only by a human action. Afterwards, outcomes flow between each other as news arrives; <code>rejected</code> is terminal and an <code>offer</code> can still fall through.</p>
+      <p>The CLI, web UI and agent loop all route through the same validator.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>04</b> State machine</div>
+  <h2 class="reveal">Every transition is validated.</h2>
+  <div class="diagram reveal">
+    <svg viewBox="0 0 820 250" width="100%" style="max-width:1020px" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="m1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#bdb7a6"/></marker>
+        <marker id="m2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#b5481f"/></marker>
+      </defs>
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <!-- discovered -->
+        <rect x="8" y="58" width="86" height="30" rx="7" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="51" y="77" text-anchor="middle" font-size="9" fill="#3a372e">discovered</text>
+        <line x1="94" y1="73" x2="116" y2="73" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <!-- scored -->
+        <rect x="116" y="58" width="66" height="30" rx="7" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="149" y="77" text-anchor="middle" font-size="9" fill="#3a372e">scored</text>
+        <!-- fork -->
+        <line x1="182" y1="66" x2="204" y2="50" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <line x1="182" y1="80" x2="204" y2="98" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <!-- shortlisted -->
+        <rect x="204" y="34" width="92" height="30" rx="7" fill="rgba(63,107,58,0.07)" stroke="rgba(63,107,58,0.4)" stroke-width="1.2"/>
+        <text x="250" y="53" text-anchor="middle" font-size="9" fill="#3f6b3a">shortlisted</text>
+        <!-- skipped -->
+        <rect x="204" y="86" width="68" height="30" rx="7" fill="#f3f0e9" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="238" y="105" text-anchor="middle" font-size="9" fill="#b3ad9e">skipped</text>
+        <path d="M238 116 Q238 138 178 138 Q149 138 149 90" stroke="#cdc7b6" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#m1)" fill="none"/>
+        <text x="196" y="151" text-anchor="middle" font-size="7.5" fill="#b3ad9e">revisitable</text>
+        <!-- prepared -->
+        <line x1="296" y1="49" x2="318" y2="49" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <rect x="318" y="34" width="78" height="30" rx="7" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="357" y="53" text-anchor="middle" font-size="9" fill="#3a372e">prepared</text>
+        <line x1="396" y1="49" x2="418" y2="49" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <!-- queued -->
+        <rect x="418" y="34" width="120" height="30" rx="7" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="478" y="53" text-anchor="middle" font-size="9" fill="#3a372e">queued_for_review</text>
+        <!-- human → submitted -->
+        <line x1="538" y1="49" x2="560" y2="49" stroke="#b5481f" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#m2)"/>
+        <rect x="560" y="32" width="86" height="36" rx="8" fill="rgba(181,72,31,0.08)" stroke="#b5481f" stroke-width="1.5"/>
+        <text x="603" y="50" text-anchor="middle" font-size="9" fill="#b5481f">submitted</text>
+        <text x="603" y="61" text-anchor="middle" font-size="6.5" fill="#c47a5c">HUMAN</text>
+        <!-- outcomes -->
+        <line x1="646" y1="42" x2="668" y2="28" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <line x1="646" y1="50" x2="668" y2="54" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <line x1="646" y1="58" x2="668" y2="80" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <line x1="646" y1="62" x2="668" y2="106" stroke="#cdc7b6" stroke-width="1.2" marker-end="url(#m1)"/>
+        <rect x="668" y="14" width="86" height="26" rx="6" fill="#f3f0e9" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="711" y="31" text-anchor="middle" font-size="8.5" fill="#b3ad9e">no_response</text>
+        <rect x="668" y="42" width="86" height="26" rx="6" fill="rgba(63,107,58,0.06)" stroke="rgba(63,107,58,0.3)" stroke-width="1.2"/>
+        <text x="711" y="59" text-anchor="middle" font-size="8.5" fill="#3f6b3a">interview</text>
+        <rect x="668" y="70" width="86" height="26" rx="6" fill="#f3f0e9" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="711" y="87" text-anchor="middle" font-size="8.5" fill="#8d877a">rejected</text>
+        <text x="752" y="100" text-anchor="end" font-size="7" fill="#b3ad9e">terminal</text>
+        <rect x="668" y="98" width="86" height="26" rx="6" fill="rgba(63,107,58,0.12)" stroke="rgba(63,107,58,0.5)" stroke-width="1.4"/>
+        <text x="711" y="115" text-anchor="middle" font-size="8.5" fill="#3f6b3a" font-weight="600">offer</text>
+
+        <!-- callout -->
+        <rect x="8" y="188" width="746" height="44" rx="9" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1"/>
+        <text x="28" y="208" font-size="9" fill="#2f4a78">validate_transition(current, target)</text>
+        <text x="232" y="208" font-size="9" fill="#8d877a">raises InvalidTransition on illegal jumps —</text>
+        <text x="28" y="222" font-size="9" fill="#8d877a">defined once in</text>
+        <text x="116" y="222" font-size="9" fill="#2f4a78">models.py</text>
+        <text x="176" y="222" font-size="9" fill="#8d877a">· enforced in CLI, web, and the agent loop alike.</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════ 6 · GUARDRAILS ══════════ -->
+<section class="slide" id="s6">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Each guardrail, in code</div>
+      <p><b>1·</b> No submit tool exists anywhere. <b>2·</b> <code>build_prefilled()</code> copies only stored profile fields; <code>assert_guardrails()</code> raises if a forbidden key leaks in. <b>3·</b> <code>NEVER_AUTOFILL_KINDS</code> — motivation, salary, work-auth, demographic, free-text — always route to you; a stored value is offered as a <i>suggestion</i>, never auto-filled.</p>
+      <p><b>4·</b> <code>PoliteClient</code> enforces robots.txt, per-host spacing, caching and backoff. <b>5·</b> the API key is a lazy <code>os.environ</code> read — never stored, never logged. <b>6·</b> an append-only <code>events</code> table records every action.</p>
+      <p>A dedicated test file fails the build if any of these regress.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>05</b> Guardrails</div>
+  <h2 class="reveal">Invariants, enforced in code.</h2>
+  <div class="glist reveal">
+    <div class="grow"><div class="gn">01</div><div class="gt">Never auto-submits<span>The only submit action records that <i>you</i> did — no code path posts to a site.</span></div><div class="gw">no submit tool</div></div>
+    <div class="grow"><div class="gn">02</div><div class="gt">Never invents profile facts<span>Pre-fill draws only from stored state; anything missing becomes a field for you.</span></div><div class="gw">assert_guardrails()</div></div>
+    <div class="grow"><div class="gn">03</div><div class="gt">Never auto-answers screening<span>Motivation, salary, work-auth always route to the human.</span></div><div class="gw">NEVER_AUTOFILL_KINDS</div></div>
+    <div class="grow"><div class="gn">04</div><div class="gt">Polite, sanctioned sourcing<span>JSON APIs first; HTML respects robots.txt, rate-limits, and caches. No LinkedIn.</span></div><div class="gw">PoliteClient</div></div>
+    <div class="grow"><div class="gn">05</div><div class="gt">Secrets via environment only<span>The API key is read lazily from os.environ — never stored, never logged.</span></div><div class="gw">.env · gitignored</div></div>
+    <div class="grow"><div class="gn">06</div><div class="gt">All state inspectable<span>One plain SQLite file; an append-only events table audits every action.</span></div><div class="gw">events table</div></div>
+  </div>
+</section>
+
+<!-- ══════════ 7 · ARCHITECTURE ══════════ -->
+<section class="slide" id="s7">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Package layout</div>
+      <p>A clean Python package, one module per pipeline stage, each independently testable. Core files own config, the SQLite connection, the state machine, every DB query and the audit log.</p>
+      <p>Stage packages — <code>source/ score/ tailor/ prep/ review/ track/</code> — hold the real logic; <code>state/</code> holds the human-authored inputs. The CLI, the Starlette web app and the Agent-SDK loop are all <b>thin wrappers over the same functions</b>, so the guardrails hold whatever the entry point.</p>
+      <p><code>api/index.py</code> adapts the same app for Vercel, with a diagnostic fallback that serves the traceback instead of an opaque 500.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>06</b> Architecture</div>
+  <h2 class="reveal">Three entry points.<br>One shared core.</h2>
+  <div class="arch2 reveal">
+    <div class="diagram" style="margin-top:0;">
+      <svg viewBox="0 0 440 396" width="100%" style="max-width:460px" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ad" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto"><path d="M0,0 L7,0 L3.5,7z" fill="#bdb7a6"/></marker>
+        </defs>
+        <g font-family="SF Mono,JetBrains Mono,monospace">
+          <text x="20" y="22" font-size="9" fill="#8d877a" letter-spacing="1.5">ENTRY POINTS</text>
+          <!-- three entry boxes -->
+          <rect x="14" y="32" width="130" height="48" rx="10" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+          <text x="79" y="54" text-anchor="middle" font-size="11" fill="#17150f" font-weight="600">CLI</text>
+          <text x="79" y="69" text-anchor="middle" font-size="7.5" fill="#8d877a">argparse</text>
+          <rect x="155" y="32" width="130" height="48" rx="10" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+          <text x="220" y="54" text-anchor="middle" font-size="11" fill="#17150f" font-weight="600">Web UI</text>
+          <text x="220" y="69" text-anchor="middle" font-size="7.5" fill="#8d877a">Starlette</text>
+          <rect x="296" y="32" width="130" height="48" rx="10" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+          <text x="361" y="54" text-anchor="middle" font-size="11" fill="#17150f" font-weight="600">Agent SDK</text>
+          <text x="361" y="69" text-anchor="middle" font-size="7.5" fill="#8d877a">no submit tool</text>
+          <!-- converging arrows -->
+          <path d="M79 80 L79 110 Q79 124 130 124 L210 124" fill="none" stroke="#cdc7b6" stroke-width="1.3"/>
+          <path d="M220 80 L220 118" fill="none" stroke="#cdc7b6" stroke-width="1.3"/>
+          <path d="M361 80 L361 110 Q361 124 310 124 L230 124" fill="none" stroke="#cdc7b6" stroke-width="1.3"/>
+          <line x1="220" y1="118" x2="220" y2="150" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#ad)"/>
+          <!-- core box -->
+          <rect x="14" y="156" width="412" height="96" rx="12" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+          <text x="30" y="178" font-size="9" fill="#2f4a78" letter-spacing="1.5" font-weight="600">SHARED CORE</text>
+          <text x="30" y="200" font-size="8.5" fill="#3a372e">pipeline.run_once()</text>
+          <text x="170" y="200" font-size="8.5" fill="#3a372e">repo — all DB queries</text>
+          <text x="30" y="218" font-size="8.5" fill="#3a372e">models — state machine</text>
+          <text x="170" y="218" font-size="8.5" fill="#3a372e">events — audit log</text>
+          <text x="30" y="240" font-size="7.5" fill="#8d877a" font-style="italic" font-family="Iowan Old Style,Palatino,Georgia,serif">guardrails live here → every entry point inherits them</text>
+          <!-- arrow to storage -->
+          <line x1="220" y1="252" x2="220" y2="286" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#ad)"/>
+          <!-- storage -->
+          <rect x="14" y="292" width="412" height="58" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+          <text x="30" y="316" font-size="10" fill="#17150f" font-weight="600">SQLite — one inspectable file</text>
+          <text x="30" y="334" font-size="8" fill="#8d877a">profile · companies · jobs · applications · events</text>
+        </g>
+      </svg>
+    </div>
+    <div>
+      <div class="h">Stage modules</div>
+      <div class="mods">
+        <div class="mod"><div class="mn">source/</div><div class="md">PoliteClient · Greenhouse · Lever · Workable · HTML</div></div>
+        <div class="mod"><div class="mn">score/</div><div class="md">base (pluggable) · heuristic · claude</div></div>
+        <div class="mod"><div class="mn">tailor/</div><div class="md">track selection · Jinja2 · python-docx</div></div>
+        <div class="mod"><div class="mn">prep/</div><div class="md">fields · guardrails · greenhouse_questions</div></div>
+        <div class="mod"><div class="mn">review/</div><div class="md">the CLI human gate</div></div>
+        <div class="mod"><div class="mn">track/</div><div class="md">tracking · followup · .ics schedule</div></div>
+        <div class="mod"><div class="mn">web/</div><div class="md">Starlette · auth · Jinja2 templates</div></div>
+        <div class="mod"><div class="mn">state/</div><div class="md">profile · resumes · covers · companies</div></div>
+        <div class="mod api"><div class="mn">api/index.py</div><div class="md">Vercel ASGI entrypoint — top-level <code style="font-family:var(--mono);color:var(--cool)">app = _build_app()</code>, with a diagnostic fallback that serves the traceback on a broken deploy.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ DATA MODEL ══════════ -->
+<section class="slide" id="sData">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — The SQLite schema</div>
+      <p>Seven tables in one file. <code>profile</code> is a single row — the only facts the agent may use. <code>companies</code> is your finite watchlist; each owns many <code>jobs</code>, deduplicated by <code>UNIQUE(url)</code>.</p>
+      <p>A shortlisted job gets exactly one <code>applications</code> row (<code>UNIQUE(job_id)</code>), which references the chosen <code>resume_variants</code> and <code>cover_letters</code> and stores <code>prefilled_data</code> + <code>unanswered_fields</code> as JSON.</p>
+      <p><code>events</code> is an append-only audit log — polymorphic over <code>entity_type</code> + <code>entity_id</code>, so every state change is recoverable after the fact.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>07</b> Data model</div>
+  <h2 class="reveal">One file. Seven tables.<br>Nothing opaque.</h2>
+  <div class="diagram reveal">
+    <svg viewBox="0 0 940 432" width="100%" style="max-width:980px" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="dm" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#bdb7a6"/></marker>
+      </defs>
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <!-- relationship lines (drawn first, under boxes) -->
+        <line x1="244" y1="214" x2="356" y2="214" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#dm)"/>
+        <text x="300" y="206" text-anchor="middle" font-size="8" fill="#8d877a">1 — ∞</text>
+        <line x1="600" y1="214" x2="700" y2="214" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#dm)"/>
+        <text x="650" y="206" text-anchor="middle" font-size="8" fill="#8d877a">1 — 1</text>
+        <path d="M478 330 L478 300 Q478 286 560 286 L700 268" fill="none" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#dm)"/>
+        <path d="M712 330 L712 300 Q712 292 740 292 L760 290" fill="none" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#dm)"/>
+
+        <!-- profile -->
+        <rect x="24" y="28" width="210" height="92" rx="9" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <rect x="24" y="28" width="210" height="24" rx="9" fill="#f0ece1"/>
+        <text x="36" y="45" font-size="10" fill="#17150f" font-weight="600">profile</text>
+        <text x="222" y="45" text-anchor="end" font-size="7.5" fill="#b5481f">1 row</text>
+        <text x="36" y="69" font-size="8.5" fill="#5a5b6e">full_name · email · phone</text>
+        <text x="36" y="85" font-size="8.5" fill="#5a5b6e">work_authorization</text>
+        <text x="36" y="101" font-size="8.5" fill="#5a5b6e">extra_facts (json)</text>
+
+        <!-- companies -->
+        <rect x="24" y="166" width="210" height="98" rx="9" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <rect x="24" y="166" width="210" height="24" rx="9" fill="#f0ece1"/>
+        <text x="36" y="183" font-size="10" fill="#17150f" font-weight="600">companies</text>
+        <text x="222" y="183" text-anchor="end" font-size="7.5" fill="#8d877a">watchlist</text>
+        <text x="36" y="207" font-size="8.5" fill="#5a5b6e">name ◦ unique</text>
+        <text x="36" y="223" font-size="8.5" fill="#5a5b6e">ats_type · board_token</text>
+        <text x="36" y="239" font-size="8.5" fill="#5a5b6e">active</text>
+
+        <!-- jobs -->
+        <rect x="356" y="158" width="244" height="114" rx="9" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <rect x="356" y="158" width="244" height="24" rx="9" fill="#f0ece1"/>
+        <text x="368" y="175" font-size="10" fill="#17150f" font-weight="600">jobs</text>
+        <text x="588" y="175" text-anchor="end" font-size="7.5" fill="#8d877a">discovered roles</text>
+        <text x="368" y="199" font-size="8.5" fill="#5a5b6e">title · location</text>
+        <text x="368" y="215" font-size="8.5" fill="#5a5b6e">url ◦ unique → dedup</text>
+        <text x="368" y="231" font-size="8.5" fill="#5a5b6e">score · score_rationale</text>
+        <text x="368" y="247" font-size="8.5" fill="#5a5b6e">status</text>
+
+        <!-- applications -->
+        <rect x="700" y="150" width="216" height="150" rx="9" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <rect x="700" y="150" width="216" height="24" rx="9" fill="#f0ece1"/>
+        <text x="712" y="167" font-size="10" fill="#17150f" font-weight="600">applications</text>
+        <text x="712" y="191" font-size="8.5" fill="#5a5b6e">job_id ◦ unique</text>
+        <text x="712" y="207" font-size="8.5" fill="#5a5b6e">resume_variant_id →</text>
+        <text x="712" y="223" font-size="8.5" fill="#5a5b6e">cover_letter_id →</text>
+        <text x="712" y="239" font-size="8.5" fill="#3f6b3a">prefilled_data (json)</text>
+        <text x="712" y="255" font-size="8.5" fill="#b5481f">unanswered_fields (json)</text>
+        <text x="712" y="271" font-size="8.5" fill="#5a5b6e">status · submitted_at</text>
+
+        <!-- resume_variants -->
+        <rect x="356" y="334" width="220" height="74" rx="9" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <rect x="356" y="334" width="220" height="24" rx="9" fill="#f0ece1"/>
+        <text x="368" y="351" font-size="10" fill="#17150f" font-weight="600">resume_variants</text>
+        <text x="368" y="375" font-size="8.5" fill="#5a5b6e">track · file_path</text>
+        <text x="368" y="391" font-size="8" fill="#8d877a">human-authored · selected, not generated</text>
+
+        <!-- cover_letters -->
+        <rect x="600" y="334" width="220" height="74" rx="9" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <rect x="600" y="334" width="220" height="24" rx="9" fill="#f0ece1"/>
+        <text x="612" y="351" font-size="10" fill="#17150f" font-weight="600">cover_letters</text>
+        <text x="612" y="375" font-size="8.5" fill="#5a5b6e">name · is_template</text>
+        <text x="612" y="391" font-size="8.5" fill="#5a5b6e">file_path</text>
+
+        <!-- events -->
+        <rect x="24" y="300" width="300" height="108" rx="9" fill="rgba(47,74,120,0.05)" stroke="#cdc7b6" stroke-width="1.3"/>
+        <rect x="24" y="300" width="300" height="24" rx="9" fill="#f0ece1"/>
+        <text x="36" y="317" font-size="10" fill="#17150f" font-weight="600">events</text>
+        <text x="312" y="317" text-anchor="end" font-size="7.5" fill="#2f4a78">append-only</text>
+        <text x="36" y="341" font-size="8.5" fill="#5a5b6e">ts · entity_type · entity_id</text>
+        <text x="36" y="357" font-size="8.5" fill="#5a5b6e">action · detail (json)</text>
+        <text x="36" y="385" font-size="8" fill="#8d877a" font-style="italic" font-family="Iowan Old Style,Palatino,Georgia,serif">every state change, recorded</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════ 8 · SCORING ══════════ -->
+<section class="slide" id="s8">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Two scorers, one interface</div>
+      <p>Scoring is a pluggable <code>Scorer</code>. The <b>heuristic</b> backend is pure-Python keyword matching across eight track dictionaries, title hits weighted double, with mild seniority and skill nudges — deterministic, offline, and what every test uses.</p>
+      <p>The <b>Claude</b> backend puts the profile + instructions in an ephemeral-cached system block (stable across a run) and varies only the job text per call, so repeated scoring hits the prompt cache. It returns a score, a suggested track and a short rationale, and is instructed never to invent candidate facts.</p>
+      <p><code>backend: auto</code> uses Claude if a key is present, else the heuristic — so nothing requires credentials.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>08</b> Scoring</div>
+  <h2 class="reveal">Two backends, one interface.<br>Zero required API calls.</h2>
+  <div class="scards reveal">
+    <div class="scard">
+      <div class="st"><span>Heuristic</span><span class="pill">always available</span></div>
+      <h3>Offline · Deterministic</h3>
+      <ul>
+        <li>Keyword matching across 8 track dictionaries</li>
+        <li>Title hits weigh 2× over body text</li>
+        <li>Seniority &amp; profile-skill adjustments</li>
+        <li>Same input → same score, every run</li>
+      </ul>
+    </div>
+    <div class="scard">
+      <div class="st"><span>Claude</span><span class="pill">when key present</span></div>
+      <h3>Semantic · Prompt-cached</h3>
+      <ul>
+        <li>Profile sits in a cached system block, stable per run</li>
+        <li>Only the job text varies per call → cache hits</li>
+        <li>Returns <code>score</code> · <code>suggested_track</code> · <code>rationale</code></li>
+        <li>Default <code>claude-sonnet-4-6</code>, threshold 0.6</li>
+      </ul>
+    </div>
+  </div>
+  <div class="diagram reveal" style="margin-top:1.6rem;">
+    <svg viewBox="0 0 880 190" width="100%" style="max-width:900px" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <!-- threshold guide -->
+        <line x1="566" y1="14" x2="566" y2="168" stroke="#b5481f" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <text x="566" y="184" text-anchor="middle" font-size="8.5" fill="#b5481f">shortlist threshold · 0.60</text>
+        <!-- axis ticks -->
+        <text x="356" y="12" text-anchor="middle" font-size="7.5" fill="#b3ad9e">0.0</text>
+        <text x="811" y="12" text-anchor="middle" font-size="7.5" fill="#b3ad9e">1.0</text>
+
+        <!-- rows: x track 356..806 (width 450 = score 0..1) -->
+        <!-- 1 Senior Backend Engineer 1.00 -->
+        <text x="346" y="33" text-anchor="end" font-size="9" fill="#3a372e">Senior Backend Engineer</text>
+        <rect x="356" y="24" width="450" height="13" rx="3" fill="rgba(63,107,58,0.85)"/>
+        <text x="816" y="34" font-size="8.5" fill="#3f6b3a">1.00</text>
+        <!-- 2 Backend SWE, Platform 1.00 -->
+        <text x="346" y="57" text-anchor="end" font-size="9" fill="#3a372e">Backend SWE, Platform</text>
+        <rect x="356" y="48" width="450" height="13" rx="3" fill="rgba(63,107,58,0.85)"/>
+        <text x="816" y="58" font-size="8.5" fill="#3f6b3a">1.00</text>
+        <!-- 3 Data Scientist, Experimentation 1.00 -->
+        <text x="346" y="81" text-anchor="end" font-size="9" fill="#3a372e">Data Scientist, Experimentation</text>
+        <rect x="356" y="72" width="450" height="13" rx="3" fill="rgba(63,107,58,0.85)"/>
+        <text x="816" y="82" font-size="8.5" fill="#3f6b3a">1.00</text>
+        <!-- 4 Senior Frontend Engineer 0.05 -->
+        <text x="346" y="105" text-anchor="end" font-size="9" fill="#8d877a">Senior Frontend Engineer</text>
+        <rect x="356" y="96" width="22" height="13" rx="3" fill="#cac4b2"/>
+        <text x="386" y="106" font-size="8.5" fill="#b3ad9e">0.05</text>
+        <!-- 5 Account Executive 0.00 -->
+        <text x="346" y="129" text-anchor="end" font-size="9" fill="#8d877a">Account Executive, Sales</text>
+        <rect x="356" y="120" width="3" height="13" rx="1.5" fill="#cac4b2"/>
+        <text x="367" y="130" font-size="8.5" fill="#b3ad9e">0.00</text>
+
+        <!-- side labels -->
+        <text x="690" y="150" text-anchor="middle" font-size="8" fill="#3f6b3a" letter-spacing="1">↑ SHORTLISTED</text>
+        <text x="450" y="150" text-anchor="middle" font-size="8" fill="#b3ad9e" letter-spacing="1">SKIPPED ↓</text>
+      </g>
+    </svg>
+  </div>
+  <p class="vizcap reveal">Real heuristic output on the demo's five roles — the scorer is deliberately <b>decisive</b>, giving clean shortlist / skip separation. <code>backend: auto</code> falls back to it whenever no API key is set.</p>
+</section>
+
+<!-- ══════════ 9 · SOURCING ══════════ -->
+<section class="slide" id="s9">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Sourcing, polite by construction</div>
+      <p>Sourcing prefers official, sanctioned JSON: the Greenhouse and Lever job-board APIs and Workable's public widget endpoint. Only true HTML boards (generic/Comeet) get parsed — and there it prefers schema.org <code>JobPosting</code> JSON-LD, falling back to a light anchor heuristic.</p>
+      <p>Every fetch passes through one choke point, <code>PoliteClient</code>: robots.txt for non-sanctioned URLs, per-host rate limiting, on-disk caching with a TTL, and retries with backoff that honour <code>Retry-After</code>.</p>
+      <p>No LinkedIn, no Glassdoor, no open-web crawl — the watchlist is finite and human-defined.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>09</b> Sourcing</div>
+  <h2 class="reveal">Official APIs first.<br>Polite HTML fallback.</h2>
+  <div class="ats reveal">
+    <div class="atc json"><div class="an">Greenhouse</div><div class="at">JSON API</div></div>
+    <div class="atc json"><div class="an">Lever</div><div class="at">JSON API</div></div>
+    <div class="atc json"><div class="an">Workable</div><div class="at">JSON widget</div></div>
+    <div class="atc html"><div class="an">Generic · Comeet</div><div class="at">HTML + JSON-LD</div></div>
+  </div>
+  <div class="diagram reveal" style="margin-top:1.4rem;">
+    <svg viewBox="0 0 800 78" width="100%" style="max-width:980px" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="8" width="800" height="62" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.2"/>
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <text x="22" y="34" font-size="9.5" fill="#2f4a78" font-weight="600">PoliteClient</text>
+        <text x="22" y="50" font-size="7.5" fill="#8d877a">one choke point</text>
+        <line x1="150" y1="14" x2="150" y2="64" stroke="#e4dfd2" stroke-width="1"/>
+        <line x1="312" y1="14" x2="312" y2="64" stroke="#e4dfd2" stroke-width="1"/>
+        <line x1="474" y1="14" x2="474" y2="64" stroke="#e4dfd2" stroke-width="1"/>
+        <line x1="636" y1="14" x2="636" y2="64" stroke="#e4dfd2" stroke-width="1"/>
+        <text x="170" y="34" font-size="8.5" fill="#17150f">robots.txt</text>
+        <text x="170" y="50" font-size="7.5" fill="#8d877a">checked per URL</text>
+        <text x="332" y="34" font-size="8.5" fill="#17150f">rate limit</text>
+        <text x="332" y="50" font-size="7.5" fill="#8d877a">1.5s / host</text>
+        <text x="494" y="34" font-size="8.5" fill="#17150f">cache</text>
+        <text x="494" y="50" font-size="7.5" fill="#8d877a">1h TTL · SHA-1</text>
+        <text x="656" y="34" font-size="8.5" fill="#17150f">retries</text>
+        <text x="656" y="50" font-size="7.5" fill="#8d877a">backoff · 3×</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════ 10 · WEB UI ══════════ -->
+<section class="slide" id="s10">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — A view over the same state</div>
+      <p><code>jobagent web</code> serves a local Starlette app that is a thin view over the very same SQLite state the CLI uses: each request opens its own context, runs the same repo + state-machine code, and closes it. Every guardrail holds identically.</p>
+      <p>There is intentionally no route that submits to an ATS; <code>/review/{id}/submit</code> only records that you did. Every mutating action is crash-proofed — bad input or an illegal transition becomes a clear in-page message, never a 500.</p>
+      <p>Optional HTTP Basic auth (<code>JOBAGENT_WEB_PASSWORD</code>) gates it, since it shows personal data.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>10</b> Web UI</div>
+  <h2 class="reveal">A local Starlette app.<br>Same SQLite, same guardrails.</h2>
+  <div class="ui reveal">
+    <div class="uic"><div class="un">Dashboard</div><div class="ud">Counts, profile status, recent audit log</div></div>
+    <div class="uic"><div class="un">Jobs</div><div class="ud">All roles ranked by score, with rationale</div></div>
+    <div class="uic gate"><div class="un">Review Queue</div><div class="ud">The human gate — pre-filled + what's left</div></div>
+    <div class="uic"><div class="un">Tracker</div><div class="ud">Outcomes as you hear back</div></div>
+    <div class="uic"><div class="un">Materials</div><div class="ud">Upload résumés &amp; cover letters</div></div>
+    <div class="uic"><div class="un">Companies</div><div class="ud">Manage the watchlist</div></div>
+    <div class="uic"><div class="un">Profile</div><div class="ud">Edit core &amp; extra facts</div></div>
+    <div class="uic"><div class="un">Guide</div><div class="ud">Built-in how-to + guardrails</div></div>
+  </div>
+  <p class="lede reveal">A thin view over the state the CLI owns — every mutating action is crash-proofed into an in-page message, never a 500.</p>
+</section>
+
+<!-- ══════════ 11 · RUN IT ══════════ -->
+<section class="slide" id="s11">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Running it locally or on Vercel</div>
+      <p>Easiest path: <code>jobagent web</code> on localhost, reached remotely via a Tailscale or cloudflared tunnel — a plain SQLite file and zero infrastructure.</p>
+      <p>For serverless, <code>api/index.py</code> exposes the app as a top-level ASGI <code>app</code> Vercel can detect. It needs a hosted libSQL/Turso database (<code>JOBAGENT_DB_URL</code>) so state survives between invocations, a writable <code>/tmp</code> data dir, and a password gate.</p>
+      <p><code>jobagent demo</code> seeds a realistic offline example and runs the pipeline, so the review queue is populated immediately — no key, no network.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>11</b> Run it</div>
+  <h2 class="reveal">Local-first. Serverless-ready.<br>Working in 30 seconds.</h2>
+  <div class="run reveal">
+    <div class="deploy">
+      <div class="dep"><div class="dt">Local <span class="b">default</span></div><div class="dd"><code>jobagent web</code> on localhost; tunnel via Tailscale / cloudflared. Plain SQLite, zero infra.</div></div>
+      <div class="dep"><div class="dt">Vercel <span class="b">serverless</span></div><div class="dd"><code>api/index.py</code> exports a top-level ASGI <code>app</code>. Needs <code>JOBAGENT_DB_URL</code> (Turso) + <code>JOBAGENT_WEB_PASSWORD</code>.</div></div>
+    </div>
+    <div class="term">
+      <div class="dotbar"><i style="background:#e0696a"></i><i style="background:#e0b46a"></i><i style="background:#86b97f"></i></div>
+<span class="c"># offline demo — seeds a profile, sample roles, runs the pipeline</span>
+<span class="g">jobagent</span><span class="l"> demo</span>
+<span class="g">jobagent</span><span class="l"> web</span><span class="c">          → http://127.0.0.1:8000</span>
+
+<span class="c"># real setup</span>
+<span class="g">jobagent</span><span class="l"> profile set </span><span class="a">--full-name</span><span class="y"> "Your Name"</span>
+<span class="g">jobagent</span><span class="l"> resume add </span><span class="a">--track</span><span class="y"> backend </span><span class="a">--file</span><span class="y"> be.docx</span>
+<span class="g">jobagent</span><span class="l"> company add </span><span class="a">--name</span><span class="y"> Stripe </span><span class="a">--ats</span><span class="y"> greenhouse</span>
+
+<span class="g">jobagent</span><span class="l"> run</span><span class="c">              source → score → tailor → prep</span>
+<span class="g">jobagent</span><span class="l"> review list</span><span class="c">      the human gate</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ EARNED AUTONOMY ══════════ -->
+<section class="slide" id="sEarned">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — Earned autonomy (build plan §9)</div>
+      <p>The success metric is <b>human-touch rate</b> — the share of prepared applications that still need you before submit. v1 starts at 100%: you review everything.</p>
+      <p>It comes down only by whitelisting <i>specific</i> ATS types that prove clean — stable forms, no CAPTCHA, no surprise free-text — and even then never for an application that still has any <code>unanswered_fields</code>.</p>
+      <p>So the curve has a floor. The human is never removed from the irreversible step by fiat; autonomy is earned, per site, with evidence.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>12</b> Earned autonomy</div>
+  <h2 class="reveal">The metric trends down —<br>only when it's earned.</h2>
+  <div class="diagram reveal">
+    <svg viewBox="0 0 880 296" width="100%" style="max-width:920px" xmlns="http://www.w3.org/2000/svg">
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <!-- y axis -->
+        <line x1="64" y1="30" x2="64" y2="244" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="56" y="44" text-anchor="end" font-size="8" fill="#8d877a">100%</text>
+        <text x="56" y="144" text-anchor="end" font-size="8" fill="#8d877a">50%</text>
+        <text x="56" y="244" text-anchor="end" font-size="8" fill="#8d877a">0%</text>
+        <line x1="64" y1="40" x2="846" y2="40" stroke="#ece8dd" stroke-width="1"/>
+        <line x1="64" y1="140" x2="846" y2="140" stroke="#ece8dd" stroke-width="1"/>
+        <!-- x axis -->
+        <line x1="64" y1="244" x2="846" y2="244" stroke="#d9d4c6" stroke-width="1.2"/>
+        <text x="455" y="270" text-anchor="middle" font-size="8.5" fill="#8d877a" letter-spacing="1">time  →  as specific ATSs prove clean</text>
+
+        <!-- area under step -->
+        <path d="M64 40 L260 40 L260 92 L470 92 L470 140 L660 140 L660 184 L846 184 L846 244 L64 244 Z"
+              fill="rgba(47,74,120,0.08)"/>
+        <!-- step line -->
+        <path d="M64 40 L260 40 L260 92 L470 92 L470 140 L660 140 L660 184 L846 184"
+              fill="none" stroke="#2f4a78" stroke-width="2"/>
+        <!-- step nodes -->
+        <circle cx="64" cy="40" r="3.5" fill="#2f4a78"/>
+        <circle cx="260" cy="92" r="3.5" fill="#2f4a78"/>
+        <circle cx="470" cy="140" r="3.5" fill="#2f4a78"/>
+        <circle cx="660" cy="184" r="3.5" fill="#2f4a78"/>
+
+        <!-- floor -->
+        <line x1="64" y1="184" x2="846" y2="184" stroke="#b5481f" stroke-width="1.1" stroke-dasharray="4 3"/>
+        <text x="842" y="178" text-anchor="end" font-size="8" fill="#b5481f">floor — never zero by fiat</text>
+
+        <!-- annotations -->
+        <text x="74" y="32" font-size="8.5" fill="#2f4a78">v1 today · every app reviewed</text>
+        <text x="270" y="86" font-size="8" fill="#8d877a">ATS A proven →</text>
+        <text x="480" y="134" font-size="8" fill="#8d877a">ATS B proven →</text>
+        <text x="566" y="208" font-size="8" fill="#8d877a">human stays on unproven sites &amp; any unanswered field</text>
+      </g>
+    </svg>
+  </div>
+  <p class="vizcap reveal">Conceptual trajectory, faithful to the design: the firehose underperforms targeted, clean applications — and the irreversible step is exactly where a confident wrong answer does lasting damage.</p>
+</section>
+
+<!-- ══════════ 12 · CLOSING ══════════ -->
+<section class="slide" id="s12">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — The line it builds to</div>
+      <p>The architecture gives you maximum leverage on the recoverable ~90% of the work while keeping you on the irreversible ~10%.</p>
+      <p>Success is measured by <b>human-touch rate trending down</b> — but only by whitelisting specific ATSs that prove clean over time, never by removing the human from submit up front. Per-ATS auto-submit, smarter follow-ups and analytics are deliberately out of scope for v1, and each must preserve every guardrail.</p>
+    </div>
+  </div>
+  <p class="close-say reveal">Maximum leverage on the recoverable 90%.<br>A human on the irreversible 10%.<br><b>Build to that line.</b></p>
+  <div class="close-metric reveal">
+    <div><div class="k">Metric</div><div class="v warm">human-touch rate ↓</div></div>
+    <div><div class="k">Tests</div><div class="v">62 · fully offline</div></div>
+    <div><div class="k">Auto-submissions</div><div class="v">0</div></div>
+    <div><div class="k">Stack</div><div class="v">Python · SQLite · Starlette</div></div>
+  </div>
+  <div class="wm" style="font-style:normal;opacity:.04;">⏚</div>
+</section>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const counter=document.getElementById('counter');
+const prog=document.getElementById('prog');
+const dotsWrap=document.getElementById('dots');
+const total=slides.length;
+
+// build dot nav
+slides.forEach((s,i)=>{
+  const b=document.createElement('button');
+  b.setAttribute('aria-label','slide '+(i+1));
+  b.onclick=()=>s.scrollIntoView({behavior:'smooth'});
+  dotsWrap.appendChild(b);
+});
+const dots=[...dotsWrap.children];
+
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+      const i=slides.indexOf(e.target);
+      counter.textContent=String(i+1).padStart(2,'0')+' / '+String(total).padStart(2,'0');
+      dots.forEach((d,j)=>d.classList.toggle('on',j===i));
+    }
+  });
+},{threshold:.5});
+slides.forEach(s=>io.observe(s));
+
+// progress bar
+addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  prog.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';
+},{passive:true});
+
+// keyboard nav
+function current(){const c=innerHeight/2;return slides.findIndex(s=>{const r=s.getBoundingClientRect();return r.top<=c&&r.bottom>c;});}
+addEventListener('keydown',e=>{
+  const i=current();if(i<0)return;
+  if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();slides[Math.min(i+1,total-1)].scrollIntoView({behavior:'smooth'});}
+  if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();slides[Math.max(i-1,0)].scrollIntoView({behavior:'smooth'});}
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foreman — deck</title>
+<style>
+:root{
+  --paper:#f3f0e9; --paper2:#ece8dd; --card:#fbfaf6;
+  --ink:#17150f; --ink2:#3a372e; --mut:#8d877a; --mut2:#b3ad9e;
+  --line:#d9d4c6; --line2:#cac4b2;
+  --cool:#2f4a78; --cool-soft:rgba(47,74,120,.08);
+  --warm:#b5481f; --warm-soft:rgba(181,72,31,.08);
+  --green:#3f6b3a; --red:#a33a2a;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-snap-type:y mandatory;scroll-behavior:smooth;height:100%;}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+
+.chrome{position:fixed;z-index:50;font-family:var(--mono);font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);}
+.chrome.tl{top:26px;left:34px;}
+.chrome.tr{top:26px;right:34px;}
+.chrome .brand{color:var(--ink);font-weight:600;}
+.chrome .brand b{color:var(--warm);}
+.progress{position:fixed;left:0;top:0;height:2px;background:var(--ink);width:0;z-index:60;transition:width .15s linear;}
+.dots{position:fixed;right:28px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:13px;}
+.dots button{appearance:none;border:none;background:none;cursor:pointer;width:11px;height:11px;display:flex;align-items:center;justify-content:center;padding:0;}
+.dots button::after{content:'';width:8px;height:8px;border-radius:50%;border:1px solid var(--mut2);transition:.25s;}
+.dots button.on::after{background:var(--ink);border-color:var(--ink);transform:scale(1.25);}
+@media(max-width:780px){.dots{display:none;}.chrome{font-size:.6rem;}.chrome.tl{left:18px;}.chrome.tr{right:18px;}}
+
+.slide{min-height:100vh;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:8vh 6.5vw 7vh;position:relative;overflow:hidden;}
+.kick{font-family:var(--mono);font-size:.82rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:1rem;margin-bottom:1.8rem;}
+.kick::before{content:'';width:42px;height:1px;background:var(--line2);}
+.kick b{color:var(--cool);font-weight:600;}
+h2{font-size:clamp(2.6rem,5.5vw,4.4rem);font-weight:600;letter-spacing:-.025em;line-height:1.06;}
+.lede{font-size:1.16rem;color:var(--ink2);max-width:52ch;line-height:1.7;margin-top:1.4rem;}
+.lede .q{font-family:var(--mono);font-size:.92rem;color:var(--cool);}
+.wm{position:absolute;font-family:var(--serif);font-size:32vh;line-height:1;color:var(--ink);opacity:.035;right:5vw;bottom:-4vh;pointer-events:none;user-select:none;font-style:italic;}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+.slide.in .reveal{opacity:1;transform:none;}
+.slide.in .reveal:nth-child(2){transition-delay:.07s;}
+.slide.in .reveal:nth-child(3){transition-delay:.14s;}
+.slide.in .reveal:nth-child(4){transition-delay:.21s;}
+.slide.in .reveal:nth-child(5){transition-delay:.28s;}
+
+/* status badge */
+.badge{display:inline-flex;align-items:center;gap:.55em;font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--warm);border:1px solid rgba(181,72,31,.4);background:var(--warm-soft);border-radius:100px;padding:.45em 1em;}
+.badge .d{width:7px;height:7px;border-radius:50%;background:var(--warm);}
+
+/* title */
+#s1{justify-content:space-between;padding-top:13vh;padding-bottom:8vh;}
+.title-top{font-family:var(--mono);font-size:.84rem;letter-spacing:.22em;text-transform:uppercase;color:var(--mut);}
+.title-main .lockup{font-size:clamp(4.2rem,13vw,11.5rem);font-weight:600;letter-spacing:-.045em;line-height:.92;}
+.title-main .say{font-family:var(--serif);font-style:italic;font-size:clamp(1.8rem,4vw,3.1rem);color:var(--ink2);margin-top:1.6rem;letter-spacing:-.01em;max-width:26ch;line-height:1.25;}
+.title-foot{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;font-family:var(--mono);font-size:.82rem;letter-spacing:.08em;color:var(--mut);text-transform:uppercase;}
+.title-foot .r{display:flex;gap:1.6rem;}
+
+/* split */
+.split{display:grid;grid-template-columns:1fr 1px 1fr;margin-top:1.8rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.split .col{padding:2.4rem 2.2rem;}
+.split .rule{background:var(--line);}
+.split .tag{font-family:var(--mono);font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;}
+.split .tag .sq{width:11px;height:11px;border-radius:2px;}
+.col.cool .tag{color:var(--cool);} .col.cool .sq{background:var(--cool);}
+.col.warm .tag{color:var(--warm);} .col.warm .sq{background:var(--warm);}
+.split h3{font-size:2rem;font-weight:600;letter-spacing:-.02em;margin-bottom:.6rem;}
+.split .stages{font-family:var(--mono);font-size:1.05rem;color:var(--ink2);line-height:1.9;}
+.split .conseq{font-size:1rem;color:var(--mut);margin-top:1.1rem;line-height:1.6;max-width:34ch;}
+.principle-foot{font-family:var(--serif);font-style:italic;font-size:1.5rem;color:var(--ink2);margin-top:2.2rem;max-width:64ch;line-height:1.5;}
+.principle-foot b{font-style:normal;font-weight:600;color:var(--ink);border-bottom:2px solid var(--warm);}
+
+.diagram{margin-top:2rem;overflow-x:auto;padding-bottom:.5rem;}
+.diagram svg{display:block;margin:0 auto;}
+.vizcap{font-family:var(--mono);font-size:.74rem;color:var(--mut);margin-top:1.1rem;letter-spacing:.02em;line-height:1.6;}
+.vizcap code{color:var(--cool);} .vizcap b{color:var(--ink);font-weight:600;}
+
+/* roster / cards */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-top:2rem;}
+.cardx{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.4rem 1.4rem;}
+.cardx.cool{border-top:3px solid var(--cool);} .cardx.warm{border-top:3px solid var(--warm);}
+.cardx .ct{font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:.6rem;}
+.cardx.cool .ct{color:var(--cool);} .cardx.warm .ct{color:var(--warm);}
+.cardx h3{font-size:1.12rem;font-weight:600;letter-spacing:-.01em;margin-bottom:.4rem;}
+.cardx p{font-size:.85rem;color:var(--mut);line-height:1.55;}
+
+/* tool table */
+.tools{margin-top:2rem;border-top:1px solid var(--line);}
+.trow{display:grid;grid-template-columns:200px 1fr auto;gap:1.4rem;align-items:baseline;padding:1.05rem .2rem;border-bottom:1px solid var(--line);}
+.trow .tn{font-family:var(--mono);font-size:.95rem;color:var(--ink);}
+.trow .td{font-size:.9rem;color:var(--mut);line-height:1.5;}
+.trow .tk{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cool);white-space:nowrap;}
+.trow.deny{background:var(--warm-soft);border-radius:8px;}
+.trow.deny .tn{color:var(--warm);text-decoration:line-through;}
+.trow.deny .tk{color:var(--warm);}
+
+/* phases */
+.phases{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin-top:2rem;}
+.ph{display:flex;gap:1rem;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem 1.2rem;}
+.ph .pn{font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--cool);line-height:1;flex-shrink:0;width:1.4em;}
+.ph.gate{border-color:rgba(181,72,31,.35);} .ph.gate .pn{color:var(--warm);}
+.ph .pt{font-size:.95rem;font-weight:600;margin-bottom:.2rem;}
+.ph .pd{font-size:.78rem;color:var(--mut);line-height:1.5;}
+
+/* models */
+.models{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top:1.8rem;}
+.mdl{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:1.3rem 1.4rem;}
+.mdl .mid{font-family:var(--mono);font-size:.8rem;color:var(--cool);}
+.mdl .mrole{font-size:1rem;font-weight:600;margin:.4rem 0 .25rem;}
+.mdl .mp{font-family:var(--mono);font-size:.74rem;color:var(--mut);}
+
+/* mock UI */
+.mock{margin-top:2rem;background:#16140f;border-radius:14px;overflow:hidden;box-shadow:0 24px 60px -30px rgba(23,21,15,.5);font-family:var(--mono);}
+.mockbar{display:flex;align-items:center;gap:.5rem;padding:.7rem 1rem;background:#1d1b14;border-bottom:1px solid #2a2820;}
+.mockbar i{width:10px;height:10px;border-radius:50%;display:block;}
+.mocktitle{margin-left:.6rem;color:#8d877a;font-size:.72rem;letter-spacing:.05em;}
+.mockbody{display:grid;grid-template-columns:200px 1fr;min-height:330px;}
+.mockside{background:#13110b;border-right:1px solid #2a2820;padding:1rem .9rem;font-size:.74rem;color:#6e6a5d;}
+.mockside .si{padding:.45em .6em;border-radius:6px;margin-bottom:.2rem;color:#a8a294;}
+.mockside .si.on{background:#241f14;color:#d8b46a;}
+.mockmain{padding:1.2rem 1.4rem;color:#d8d2c4;font-size:.8rem;line-height:1.7;}
+.mockmain .row{display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid #211f18;}
+.mst{font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:.2em .6em;border-radius:100px;}
+.mst.green{background:rgba(63,107,58,.2);color:#86b97f;}
+.mst.warm{background:rgba(181,72,31,.2);color:#e0a06a;}
+.mst.run{background:rgba(47,74,120,.25);color:#8fb0e0;}
+.mockmain .gd{color:#6e6a5d;}
+
+/* agent architecture */
+.arch2{display:grid;grid-template-columns:1.05fr .95fr;gap:2.2rem;margin-top:1.8rem;align-items:center;}
+.abl{display:flex;flex-direction:column;border-top:1px solid var(--line);}
+.abrow{display:grid;grid-template-columns:auto 1fr;gap:.15rem 1rem;padding:.8rem .1rem;border-bottom:1px solid var(--line);}
+.abrow .an{font-family:var(--mono);font-size:.98rem;color:var(--cool);}
+.abrow .af{font-family:var(--mono);font-size:.66rem;color:var(--mut);text-align:right;align-self:center;}
+.abrow .ad{grid-column:1 / -1;font-size:.82rem;color:var(--mut);line-height:1.5;}
+
+/* explain popovers */
+.explain{position:absolute;top:6.8vh;right:6.5vw;z-index:40;}
+.ex-btn{appearance:none;cursor:pointer;font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);background:var(--card);border:1px solid var(--line2);border-radius:100px;padding:.5em 1em;display:inline-flex;align-items:center;gap:.5em;transition:color .2s,border-color .2s,box-shadow .2s;}
+.ex-btn:hover,.explain:focus-within .ex-btn{color:var(--ink);border-color:var(--ink);box-shadow:0 6px 18px -10px rgba(23,21,15,.4);}
+.exi{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid currentColor;border-radius:50%;font-family:var(--serif);font-style:italic;font-size:.66rem;line-height:1;}
+.ex-panel{position:absolute;top:calc(100% + 12px);right:0;z-index:41;width:clamp(330px,34vw,480px);background:var(--card);border:1px solid var(--line2);border-radius:15px;padding:1.5rem 1.65rem;text-align:left;box-shadow:0 28px 64px -30px rgba(23,21,15,.6);opacity:0;transform:translateY(-8px) scale(.985);transform-origin:top right;pointer-events:none;transition:opacity .22s ease,transform .22s ease;max-height:70vh;overflow:auto;}
+.ex-panel::before{content:'';position:absolute;top:-14px;left:0;right:0;height:14px;}
+.explain:hover .ex-panel,.explain:focus-within .ex-panel{opacity:1;transform:none;pointer-events:auto;}
+.ex-h{font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--cool);margin-bottom:.95rem;padding-bottom:.75rem;border-bottom:1px solid var(--line);}
+.ex-panel p{font-size:.93rem;line-height:1.68;color:var(--ink2);margin-bottom:.8rem;}
+.ex-panel p:last-child{margin-bottom:0;}
+.ex-panel code{font-family:var(--mono);font-size:.82rem;color:var(--cool);}
+.ex-panel b{color:var(--ink);font-weight:600;}
+
+/* closing */
+#sLast{justify-content:center;}
+.close-say{font-family:var(--serif);font-size:clamp(2.2rem,5vw,3.9rem);line-height:1.28;letter-spacing:-.015em;max-width:22ch;}
+.close-say b{color:var(--warm);font-weight:600;}
+.close-next{margin-top:2.4rem;border-top:1px solid var(--line);padding-top:1.6rem;display:flex;gap:3rem;flex-wrap:wrap;}
+.close-next div .k{font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:.45rem;}
+.close-next div .v{font-size:1.05rem;font-weight:600;letter-spacing:-.01em;}
+.close-next div .v.cool{color:var(--cool);} .close-next div .v.warm{color:var(--warm);}
+
+@media(max-width:780px){
+  .slide{padding:13vh 7vw 9vh;}
+  .split,.cards,.phases,.models,.mockbody,.arch2{grid-template-columns:1fr;}
+  .split .rule{display:none;}
+  .split .col{border-bottom:1px solid var(--line);padding:1.8rem 0;}
+  .trow{grid-template-columns:1fr;gap:.3rem;} .trow .tk{display:none;}
+  .wm{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="prog"></div>
+<div class="chrome tl"><span class="brand"><b>fore</b>man</span></div>
+<div class="chrome tr" id="counter">01 / 12</div>
+<div class="dots" id="dots"></div>
+
+<!-- 1 TITLE -->
+<section class="slide" id="s1">
+  <div class="title-top reveal">Autonomous dev-agent system · builds jobagent</div>
+  <div class="title-main">
+    <div class="lockup reveal"><b>fore</b>man</div>
+    <div class="say reveal">Agents that write the code — and leave the merge to you.</div>
+  </div>
+  <div class="title-foot reveal">
+    <div><span class="badge"><span class="d"></span>Runs offline · 15 tests · LLM policy is the last wire</span></div>
+    <div class="r"><span>Python</span><span>Messages API + tool use</span><span>SQLite</span></div>
+  </div>
+</section>
+
+<!-- 2 THESIS -->
+<section class="slide" id="s2">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — the recursive idea</div>
+      <p><b>jobagent</b> is built on one rule: automate everything recoverable, keep a human on the one irreversible step (submitting an application). <b>Foreman</b> applies that same rule to the act of building jobagent.</p>
+      <p>Writing code on a branch is recoverable — a bad commit is <code>git worktree remove</code> and it never happened. Merging to <code>main</code> enters shared history and may ship. So the agents do everything up to a pull request; the human merges.</p>
+      <p>The gate that keeps the recoverable loop honest is the thing jobagent already has: its <b>62 passing tests</b>. Agents iterate until the suite is green — not until they <i>feel</i> done.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>01</b> The idea</div>
+  <h2 class="reveal">The same principle —<br>turned on itself.</h2>
+  <div class="split reveal">
+    <div class="col cool">
+      <div class="tag"><span class="sq"></span>Recoverable</div>
+      <h3>Automate it.</h3>
+      <div class="stages">plan · edit · test<br>review · iterate</div>
+      <div class="conseq">A mistake is a commit on a branch. Throw the worktree away. Optimise for throughput.</div>
+    </div>
+    <div class="rule"></div>
+    <div class="col warm">
+      <div class="tag"><span class="sq"></span>Unrecoverable</div>
+      <h3>Keep a human on it.</h3>
+      <div class="stages">merge to main</div>
+      <div class="conseq">A bad merge enters shared history and may ship. Never automated in v1.</div>
+    </div>
+  </div>
+  <p class="principle-foot reveal">The truth signal is <b>jobagent's own test suite</b> — agents iterate until it's green, never until a model says so.</p>
+  <div class="wm">↻</div>
+</section>
+
+<!-- 3 LOOP -->
+<section class="slide" id="s3">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — who does what</div>
+      <p>The <b>orchestrator is plain Python</b>, not a model — you don't need an LLM to manage a queue, a git worktree, and a state machine. It mirrors jobagent's deterministic <code>run_once</code>.</p>
+      <p>The <b>implementer</b> and <b>reviewer</b> are the only model loops. The implementer edits in an isolated worktree and iterates against <code>run_tests</code> until green; a fresh-context reviewer then approves or sends it back with findings.</p>
+      <p>Only a green, reviewed diff reaches the human as a pull request.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>02</b> The loop</div>
+  <h2 class="reveal">One command. One human gate.</h2>
+  <div class="diagram reveal">
+    <svg viewBox="0 0 980 200" width="100%" style="max-width:1120px" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#bdb7a6"/></marker>
+        <marker id="arw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#b5481f"/></marker>
+        <marker id="arg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#3f6b3a"/></marker>
+      </defs>
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <line x1="92" y1="70" x2="138" y2="70" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="256" y1="70" x2="302" y2="70" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="420" y1="70" x2="466" y2="70" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="584" y1="70" x2="630" y2="70" stroke="#b5481f" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arw)"/>
+
+        <!-- issue -->
+        <rect x="12" y="44" width="80" height="52" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="52" y="68" text-anchor="middle" font-size="10" fill="#17150f" font-weight="600">issue</text>
+        <text x="52" y="83" text-anchor="middle" font-size="7.5" fill="#8d877a">a human files</text>
+        <!-- orchestrator -->
+        <rect x="138" y="44" width="118" height="52" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.3"/>
+        <text x="197" y="65" text-anchor="middle" font-size="10" fill="#2f4a78" font-weight="600">orchestrator</text>
+        <text x="197" y="80" text-anchor="middle" font-size="7.5" fill="#8d877a">plan · isolate · drive</text>
+        <!-- implementer + test loop -->
+        <rect x="302" y="44" width="118" height="52" rx="11" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+        <text x="361" y="65" text-anchor="middle" font-size="10" fill="#2f4a78" font-weight="600">implementer</text>
+        <text x="361" y="80" text-anchor="middle" font-size="7.5" fill="#8d877a">edit · run_tests ↺</text>
+        <!-- red loop back -->
+        <path d="M361 96 Q361 130 320 130 Q280 130 280 96" fill="none" stroke="#a33a2a" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+        <text x="300" y="146" text-anchor="middle" font-size="7.5" fill="#a33a2a">tests red ↺</text>
+        <!-- reviewer -->
+        <rect x="466" y="44" width="118" height="52" rx="11" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+        <text x="525" y="65" text-anchor="middle" font-size="10" fill="#2f4a78" font-weight="600">reviewer</text>
+        <text x="525" y="80" text-anchor="middle" font-size="7.5" fill="#8d877a">approve / changes ↺</text>
+        <path d="M525 96 Q525 130 443 130 Q361 130 361 96" fill="none" stroke="#cdc7b6" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#ar)"/>
+        <!-- human gate -->
+        <rect x="630" y="36" width="120" height="68" rx="13" fill="rgba(181,72,31,0.07)" stroke="#b5481f" stroke-width="1.5"/>
+        <text x="690" y="62" text-anchor="middle" font-size="10" fill="#b5481f" font-weight="600">review + merge</text>
+        <text x="690" y="78" text-anchor="middle" font-size="9" fill="#b5481f" font-weight="600">the PR</text>
+        <text x="690" y="93" text-anchor="middle" font-size="7" fill="#c47a5c">YOU · the only human step</text>
+
+        <!-- green gate marker between implementer and reviewer -->
+        <text x="443" y="40" text-anchor="middle" font-size="7.5" fill="#3f6b3a">green ↓</text>
+
+        <!-- bracket -->
+        <line x1="302" y1="160" x2="584" y2="160" stroke="#cdc7b6" stroke-width="1"/>
+        <line x1="302" y1="156" x2="302" y2="160" stroke="#cdc7b6" stroke-width="1"/>
+        <line x1="584" y1="156" x2="584" y2="160" stroke="#cdc7b6" stroke-width="1"/>
+        <text x="443" y="176" text-anchor="middle" font-size="8.5" fill="#8d877a" letter-spacing="1.5">RECOVERABLE — isolated git worktree</text>
+        <text x="690" y="160" text-anchor="middle" font-size="8.5" fill="#b5481f" letter-spacing="1.5">UNRECOVERABLE</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 3b AGENT ARCHITECTURE -->
+<section class="slide" id="sArch">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — the agent taxonomy</div>
+      <p>Each worker is an <b>autonomous</b> agent (owns its loop), <b>reactive</b> (responds to test results), <b>proactive</b> (keeps acting toward the goal), and <b>social</b> (coordinates through the blackboard) — the classic agent properties.</p>
+      <p>They are <b>goal-based / deliberative</b>: the goal is an explicit terminal state (tests green + approved), not a fixed reflex. Coordination is a <b>blackboard architecture</b> — agents never call each other; they read and write shared state and react to changes in it.</p>
+      <p>The orchestrator is a <b>control agent</b> — deterministic Python, not an LLM — sequencing the workers through the state machine.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>03</b> Agent architecture</div>
+  <h2 class="reveal">Built from the<br>standard parts.</h2>
+  <div class="arch2 reveal">
+    <div class="abl">
+      <div class="abrow"><span class="an">Agent</span><span class="af">agent.py</span><span class="ad">Autonomous entity — runs perceive → decide → act. Base for every worker.</span></div>
+      <div class="abrow"><span class="an">Environment</span><span class="af">environment.py</span><span class="ad">The world: a code workspace + test runner — the agent's sensors &amp; actuators.</span></div>
+      <div class="abrow"><span class="an">Blackboard</span><span class="af">blackboard.py</span><span class="ad">Shared memory + event log. How the agents coordinate — no direct calls.</span></div>
+      <div class="abrow"><span class="an">Tool</span><span class="af">tools.py</span><span class="ad">The action space. No merge / push tool exists — that's the guardrail.</span></div>
+      <div class="abrow"><span class="an">Policy</span><span class="af">policy.py</span><span class="ad">The decision function. MockPolicy (offline) · LLMPolicy (Claude).</span></div>
+    </div>
+    <div class="diagram" style="margin-top:0;">
+      <svg viewBox="0 0 420 304" width="100%" style="max-width:440px" xmlns="http://www.w3.org/2000/svg">
+        <defs><marker id="tri" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L0,6 L8,3z" fill="#bdb7a6"/></marker></defs>
+        <g font-family="SF Mono,JetBrains Mono,monospace">
+          <rect x="150" y="10" width="120" height="46" rx="10" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+          <text x="210" y="31" text-anchor="middle" font-size="9.5" fill="#2f4a78" font-weight="600">orchestrator</text>
+          <text x="210" y="45" text-anchor="middle" font-size="7" fill="#8d877a">control · code</text>
+
+          <rect x="106" y="120" width="208" height="62" rx="11" fill="#f0ece1" stroke="#cac4b2" stroke-width="1.5"/>
+          <text x="210" y="147" text-anchor="middle" font-size="10.5" fill="#17150f" font-weight="600">Blackboard</text>
+          <text x="210" y="163" text-anchor="middle" font-size="7.5" fill="#8d877a">shared state · event log</text>
+
+          <rect x="14" y="244" width="156" height="46" rx="10" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+          <text x="92" y="265" text-anchor="middle" font-size="9.5" fill="#2f4a78" font-weight="600">implementer</text>
+          <text x="92" y="279" text-anchor="middle" font-size="7" fill="#8d877a">edit · run_tests</text>
+
+          <rect x="250" y="244" width="156" height="46" rx="10" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+          <text x="328" y="265" text-anchor="middle" font-size="9.5" fill="#2f4a78" font-weight="600">reviewer</text>
+          <text x="328" y="279" text-anchor="middle" font-size="7" fill="#8d877a">diff · verdict</text>
+
+          <line x1="210" y1="56" x2="210" y2="120" stroke="#bdb7a6" stroke-width="1.3" marker-start="url(#tri)" marker-end="url(#tri)"/>
+          <line x1="118" y1="244" x2="168" y2="182" stroke="#bdb7a6" stroke-width="1.3" marker-start="url(#tri)" marker-end="url(#tri)"/>
+          <line x1="302" y1="244" x2="252" y2="182" stroke="#bdb7a6" stroke-width="1.3" marker-start="url(#tri)" marker-end="url(#tri)"/>
+          <text x="218" y="98" font-size="7" fill="#8d877a">read / write</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+  <p class="vizcap reveal">Real and runnable today: <code>python -m foreman.demo</code> — 8 offline tests pass, no API key.</p>
+</section>
+
+<!-- 3c PERCEIVE DECIDE ACT -->
+<section class="slide" id="sLoop2">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — PEAS &amp; the decision seam</div>
+      <p><b>PEAS</b> for a worker — Performance: a green, reviewed diff in few turns · Environment: the workspace + task · Actuators: the edit / bash / run_tests tools · Sensors: file reads, the diff, the test exit code.</p>
+      <p><code>decide</code> is a pluggable <b>Policy</b>. The deterministic <code>MockPolicy</code> drives the whole loop offline so it's testable; <code>LLMPolicy</code> runs the manual agentic loop over the Messages API with Claude in the seat — the one part that needs credentials.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>04</b> The agent loop</div>
+  <h2 class="reveal">Every agent runs<br>one cycle.</h2>
+  <div class="diagram reveal">
+    <svg viewBox="0 0 860 292" width="100%" style="max-width:980px" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="c1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#bdb7a6"/></marker></defs>
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <!-- loop arc -->
+        <path d="M730 96 C730 22 130 22 130 96" fill="none" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#c1)"/>
+        <text x="430" y="20" text-anchor="middle" font-size="8" fill="#8d877a">repeat until goal: tests green + approved</text>
+
+        <rect x="40" y="96" width="180" height="74" rx="12" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+        <text x="130" y="128" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">perceive</text>
+        <text x="130" y="146" text-anchor="middle" font-size="7.5" fill="#8d877a">sense env + blackboard</text>
+
+        <rect x="340" y="96" width="180" height="74" rx="12" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+        <text x="430" y="128" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">decide</text>
+        <text x="430" y="146" text-anchor="middle" font-size="7.5" fill="#8d877a">via the Policy</text>
+
+        <rect x="640" y="96" width="180" height="74" rx="12" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+        <text x="730" y="128" text-anchor="middle" font-size="11" fill="#2f4a78" font-weight="600">act</text>
+        <text x="730" y="146" text-anchor="middle" font-size="7.5" fill="#8d877a">invoke tools</text>
+
+        <line x1="220" y1="133" x2="340" y2="133" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#c1)"/>
+        <line x1="520" y1="133" x2="640" y2="133" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#c1)"/>
+
+        <!-- policy chips -->
+        <rect x="346" y="180" width="84" height="28" rx="100" fill="#fbfaf6" stroke="#cac4b2"/>
+        <text x="388" y="198" text-anchor="middle" font-size="7.5" fill="#8d877a">MockPolicy · offline</text>
+        <rect x="436" y="180" width="92" height="28" rx="100" fill="#fbfaf6" stroke="#cac4b2"/>
+        <text x="482" y="198" text-anchor="middle" font-size="7.5" fill="#2f4a78">LLMPolicy · Claude</text>
+
+        <!-- env / blackboard bar -->
+        <rect x="40" y="240" width="780" height="42" rx="10" fill="#f0ece1" stroke="#cac4b2" stroke-width="1.3"/>
+        <text x="430" y="266" text-anchor="middle" font-size="8.5" fill="#3a372e">Environment + Blackboard — the world the agent senses and changes</text>
+        <line x1="130" y1="240" x2="130" y2="170" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#c1)"/>
+        <text x="130" y="226" text-anchor="middle" font-size="7" fill="#8d877a">senses</text>
+        <line x1="730" y1="170" x2="730" y2="240" stroke="#cdc7b6" stroke-width="1.3" marker-end="url(#c1)"/>
+        <text x="730" y="226" text-anchor="middle" font-size="7" fill="#8d877a">changes</text>
+      </g>
+    </svg>
+  </div>
+  <p class="vizcap reveal"><b>perceive</b> the world + blackboard → <b>decide</b> via the Policy → <b>act</b> through tools → repeat. The same cycle whether a mock or Claude is deciding.</p>
+</section>
+
+<!-- 4 TRUTH SIGNAL -->
+<section class="slide" id="s4">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — why an objective gate</div>
+      <p>The single most important design decision for a code-writing agent system is the <b>feedback loop</b>. If an agent grades its own work, it will confidently declare success on broken code — that's exactly where it fabricates.</p>
+      <p>So "done" is defined by something the agent can't talk its way past: <code>pytest</code> green, plus <code>mypy</code> and <code>ruff</code> clean. <code>run_tests</code> is a dedicated tool the harness owns, so the result is parsed and recorded — the reviewer is never handed an unverified diff.</p>
+      <p>Red routes back to the implementer; the human only ever sees green.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>05</b> The truth signal</div>
+  <h2 class="reveal">"Done" means the tests pass.<br>Not that a model said so.</h2>
+  <div class="diagram reveal">
+    <svg viewBox="0 0 760 180" width="100%" style="max-width:820px" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="b1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#bdb7a6"/></marker>
+        <marker id="bg" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#3f6b3a"/></marker>
+        <marker id="br" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#a33a2a"/></marker>
+      </defs>
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <rect x="40" y="64" width="150" height="52" rx="11" fill="rgba(47,74,120,0.06)" stroke="#2f4a78" stroke-width="1.4"/>
+        <text x="115" y="86" text-anchor="middle" font-size="10" fill="#2f4a78" font-weight="600">implementer</text>
+        <text x="115" y="101" text-anchor="middle" font-size="7.5" fill="#8d877a">edits the worktree</text>
+
+        <line x1="190" y1="90" x2="290" y2="90" stroke="#cdc7b6" stroke-width="1.4" marker-end="url(#b1)"/>
+
+        <path d="M300 70 L420 70 L440 90 L420 110 L300 110 L320 90 Z" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.4"/>
+        <text x="372" y="87" text-anchor="middle" font-size="9.5" fill="#17150f" font-weight="600">run_tests</text>
+        <text x="372" y="100" text-anchor="middle" font-size="7" fill="#8d877a">pytest · mypy · ruff</text>
+
+        <!-- green -->
+        <line x1="440" y1="84" x2="560" y2="60" stroke="#3f6b3a" stroke-width="1.5" marker-end="url(#bg)"/>
+        <rect x="560" y="40" width="150" height="40" rx="9" fill="rgba(63,107,58,0.1)" stroke="rgba(63,107,58,0.5)" stroke-width="1.4"/>
+        <text x="635" y="58" text-anchor="middle" font-size="9.5" fill="#3f6b3a" font-weight="600">green → reviewer</text>
+        <text x="635" y="71" text-anchor="middle" font-size="7" fill="#3f6b3a">proceed</text>
+
+        <!-- red -->
+        <line x1="440" y1="96" x2="540" y2="120" stroke="#a33a2a" stroke-width="1.5" marker-end="url(#br)"/>
+        <rect x="540" y="104" width="170" height="40" rx="9" fill="rgba(163,58,42,0.08)" stroke="rgba(163,58,42,0.4)" stroke-width="1.3"/>
+        <text x="625" y="122" text-anchor="middle" font-size="9.5" fill="#a33a2a" font-weight="600">red → back to edit</text>
+        <text x="625" y="135" text-anchor="middle" font-size="7" fill="#a33a2a">never reaches the human</text>
+        <path d="M540 124 Q300 168 115 118" fill="none" stroke="#a33a2a" stroke-width="1.1" stroke-dasharray="3 3" marker-end="url(#br)"/>
+      </g>
+    </svg>
+  </div>
+  <p class="vizcap reveal">Budget-bounded: every loop has a hard turn / token ceiling. Exhaustion parks the task as <b>needs_human</b> — never an infinite spin.</p>
+</section>
+
+<!-- 5 ROSTER -->
+<section class="slide" id="s5">
+  <div class="kick reveal"><b>06</b> The roster</div>
+  <h2 class="reveal">Three workers. One gate.</h2>
+  <div class="cards reveal">
+    <div class="cardx cool">
+      <div class="ct">code · no LLM</div>
+      <h3>Orchestrator</h3>
+      <p>Plans tasks, owns the SQLite ledger, the worktrees, and the state machine. Deterministic — like jobagent's <code style="font-family:var(--mono);font-size:.78rem">run_once</code>.</p>
+    </div>
+    <div class="cardx cool">
+      <div class="ct">model loop</div>
+      <h3>Implementer</h3>
+      <p>Edits code in its own worktree, runs the tests, iterates to green or until the budget is spent.</p>
+    </div>
+    <div class="cardx cool">
+      <div class="ct">model loop · read-only</div>
+      <h3>Reviewer</h3>
+      <p>Fresh eyes on the diff. Approves, or sends it back with specific findings. Catches what self-critique misses.</p>
+    </div>
+    <div class="cardx warm">
+      <div class="ct">the gate</div>
+      <h3>You</h3>
+      <p>Review the prepared PR — diff, green tests, findings — and merge on the real remote. The only human step.</p>
+    </div>
+  </div>
+  <p class="lede reveal">Only the two judgement-heavy roles spend tokens. The orchestrator is plain Python — cheap, testable, and in full control of the irreversible boundary.</p>
+</section>
+
+<!-- 6 TOOLS -->
+<section class="slide" id="s6">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — capability is the guardrail</div>
+      <p>The agents get Anthropic's schema-less <code>bash</code> and <code>text_editor</code> tools (you declare them, you execute them locally) plus a dedicated <code>run_tests</code>. That's enough to read, edit, and verify code.</p>
+      <p>What they <i>don't</i> get is a merge or push tool — so the agent <b>cannot</b> perform the irreversible action, the same way jobagent's loop has no submit tool. Security checks (path confinement, command allowlist) live in the tool executors, in one place.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>07</b> The tool surface</div>
+  <h2 class="reveal">The missing tool<br>is the guardrail.</h2>
+  <div class="tools reveal">
+    <div class="trow"><span class="tn">bash</span><span class="td">Run commands — behind an allowlist; rejects shell operators, network, anything outside the worktree.</span><span class="tk">Anthropic-defined</span></div>
+    <div class="trow"><span class="tn">text_editor</span><span class="td">View / create / replace — path confined to the worktree root; backs up on overwrite.</span><span class="tk">Anthropic-defined</span></div>
+    <div class="trow"><span class="tn">run_tests</span><span class="td">Runs pytest + mypy + ruff in the worktree; returns pass/fail. The truth signal.</span><span class="tk">custom · the gate</span></div>
+    <div class="trow"><span class="tn">read · grep · get_diff</span><span class="td">Read-only inspection for the reviewer.</span><span class="tk">custom · read-only</span></div>
+    <div class="trow deny"><span class="tn">merge · push origin main</span><span class="td">Does not exist. The agent cannot perform the irreversible step — by construction.</span><span class="tk">never</span></div>
+  </div>
+</section>
+
+<!-- 7 LOOP MECHANICS + MODELS -->
+<section class="slide" id="s7">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — the hand-rolled loop</div>
+      <p>Each model role is a manual agentic loop over the Messages API: call with tools, branch on <code>stop_reason</code>, execute tool calls, feed results back, repeat until <code>end_turn</code>. You own the loop — that's the point of the project.</p>
+      <p>Stable context (repo map, conventions, the test command, the task's acceptance notes) goes in a <b>prompt-cached system block</b>, so every iteration re-reads it at ~0.1× cost. The biggest lever in a multi-turn loop.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>08</b> The hand-rolled loop</div>
+  <h2 class="reveal">You own the loop.</h2>
+  <div class="diagram reveal" style="margin-top:1.6rem;">
+    <svg viewBox="0 0 820 96" width="100%" style="max-width:860px" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="10" width="820" height="76" rx="11" fill="#fbfaf6" stroke="#d9d4c6" stroke-width="1.2"/>
+      <g font-family="SF Mono,JetBrains Mono,monospace">
+        <text x="22" y="34" font-size="9.5" fill="#2f4a78" font-weight="600">stop_reason →</text>
+        <line x1="150" y1="18" x2="150" y2="78" stroke="#e4dfd2" stroke-width="1"/>
+        <line x1="340" y1="18" x2="340" y2="78" stroke="#e4dfd2" stroke-width="1"/>
+        <line x1="520" y1="18" x2="520" y2="78" stroke="#e4dfd2" stroke-width="1"/>
+        <line x1="660" y1="18" x2="660" y2="78" stroke="#e4dfd2" stroke-width="1"/>
+        <text x="170" y="40" font-size="9" fill="#17150f">tool_use</text>
+        <text x="170" y="58" font-size="7.5" fill="#8d877a">run tools, append</text>
+        <text x="170" y="70" font-size="7.5" fill="#8d877a">results, loop</text>
+        <text x="360" y="40" font-size="9" fill="#3f6b3a">end_turn</text>
+        <text x="360" y="58" font-size="7.5" fill="#8d877a">role done —</text>
+        <text x="360" y="70" font-size="7.5" fill="#8d877a">return result</text>
+        <text x="540" y="40" font-size="9" fill="#17150f">pause_turn</text>
+        <text x="540" y="58" font-size="7.5" fill="#8d877a">re-send to</text>
+        <text x="540" y="70" font-size="7.5" fill="#8d877a">resume</text>
+        <text x="680" y="40" font-size="9" fill="#b5481f">refusal</text>
+        <text x="680" y="58" font-size="7.5" fill="#8d877a">park as</text>
+        <text x="680" y="70" font-size="7.5" fill="#8d877a">needs_human</text>
+      </g>
+    </svg>
+  </div>
+  <div class="models reveal">
+    <div class="mdl"><div class="mid">claude-opus-4-8</div><div class="mrole">Reviewer · judgement</div><div class="mp">$5 / $25 · best at finding real bugs</div></div>
+    <div class="mdl"><div class="mid">claude-sonnet-4-6</div><div class="mrole">Implementer · volume</div><div class="mp">$3 / $15 · or Opus for top quality</div></div>
+    <div class="mdl"><div class="mid">claude-haiku-4-5</div><div class="mrole">Triage · routing</div><div class="mp">$1 / $5 · cheap classification</div></div>
+  </div>
+</section>
+
+<!-- 8 INTERFACE MOCK -->
+<section class="slide" id="s8">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — the real UI</div>
+      <p>This is a <b>real interface</b> now — <code>foreman web</code> serves it (Starlette) as a thin view over the same SQLite ledger the CLI writes, exactly like jobagent's UI. The screen below is illustrative, not a screenshot.</p>
+      <p>The review queue is the heart of it: each task shows its prepared diff, the green test result, and the runs/cost — and the <b>Merge</b> button performs the one human action. No route merges or pushes to a real remote.</p>
+      <p>It's a full <b>control panel for non-coders</b>: start a run from a form, watch the agents work via live status (the page auto-refreshes), and merge — all in the browser. Launch with <code>foreman web</code>, or just double-click <code>Foreman.command</code>.</p>
+    </div>
+  </div>
+  <div class="kick reveal"><b>09</b> The interface</div>
+  <h2 class="reveal">Drive it all<br>from the browser.</h2>
+  <div class="mock reveal">
+    <div class="mockbar"><i style="background:#e0696a"></i><i style="background:#e0b46a"></i><i style="background:#86b97f"></i><span class="mocktitle">foreman web — review queue</span></div>
+    <div class="mockbody">
+      <div class="mockside">
+        <div class="si" style="color:#8fb0e0">+ New run</div>
+        <div class="si">Dashboard</div>
+        <div class="si on">Review queue</div>
+        <div class="si">Tasks</div>
+        <div class="si">Runs &amp; cost</div>
+      </div>
+      <div class="mockmain">
+        <div class="row"><span class="mst green">green</span> <span>#41 &nbsp;source: add Comeet pagination</span> <span class="gd">&nbsp;· 62 tests pass · 2 files</span></div>
+        <div class="row"><span class="mst green">green</span> <span>#39 &nbsp;prep: surface salary note in UI</span> <span class="gd">&nbsp;· 62 pass · reviewer ✓</span></div>
+        <div class="row"><span class="mst run">testing</span> <span>#43 &nbsp;score: cache profile block</span> <span class="gd">&nbsp;· implementer iterating…</span></div>
+        <div class="row"><span class="mst warm">needs_human</span> <span>#37 &nbsp;web: Turso migration</span> <span class="gd">&nbsp;· budget exhausted</span></div>
+        <div class="row" style="border:none;color:#6e6a5d;padding-top:1rem;">[ open #41 ] &nbsp;→&nbsp; diff · test output · 0 findings &nbsp;→&nbsp; <span style="color:#e0a06a">merge (you)</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 PHASES -->
+<section class="slide" id="s9">
+  <div class="kick reveal"><b>10</b> Build plan</div>
+  <h2 class="reveal">Built — end to end.<br>One wire left.</h2>
+  <div class="phases reveal">
+    <div class="ph" style="border-color:rgba(63,107,58,.4);"><div class="pn" style="color:var(--green)">✓</div><div><div class="pt">Agent architecture + truth signal</div><div class="pd">perceive→decide→act loop, blackboard, tools, state machine, run_tests.</div></div></div>
+    <div class="ph" style="border-color:rgba(63,107,58,.4);"><div class="pn" style="color:var(--green)">✓</div><div><div class="pt">Persistent ledger</div><div class="pd">SQLite tasks · runs · events; full audit trail.</div></div></div>
+    <div class="ph" style="border-color:rgba(63,107,58,.4);"><div class="pn" style="color:var(--green)">✓</div><div><div class="pt">Reviewer + bounded review loop</div><div class="pd">request-changes ↺ approve, capped cycles.</div></div></div>
+    <div class="ph" style="border-color:rgba(63,107,58,.4);"><div class="pn" style="color:var(--green)">✓</div><div><div class="pt">Git worktree isolation</div><div class="pd">a branch per task; main never touched.</div></div></div>
+    <div class="ph" style="border-color:rgba(63,107,58,.4);"><div class="pn" style="color:var(--green)">✓</div><div><div class="pt">Human gate + PR prep</div><div class="pd">commit the branch, record the diff for review.</div></div></div>
+    <div class="ph" style="border-color:rgba(63,107,58,.4);"><div class="pn" style="color:var(--green)">✓</div><div><div class="pt">Web UI</div><div class="pd"><code style="font-family:var(--mono);font-size:.7rem">foreman web</code> — review queue + merge button.</div></div></div>
+    <div class="ph" style="border-color:rgba(63,107,58,.4);"><div class="pn" style="color:var(--green)">✓</div><div><div class="pt">Analytics</div><div class="pd">success · iterations-to-green · cost · human-touch.</div></div></div>
+    <div class="ph gate"><div class="pn">→</div><div><div class="pt">LLM policy &nbsp;<span style="font-family:var(--mono);font-size:.6rem;color:var(--warm);letter-spacing:.1em;">THE LAST WIRE</span></div><div class="pd">Claude in the decision seat, on jobagent's real suite.</div></div></div>
+    <div class="ph" style="border-style:dashed;opacity:.7;"><div class="pn" style="color:var(--mut)">↟</div><div><div class="pt">Earned autonomy (later)</div><div class="pd">auto-merge proven-clean classes (docs, dep bumps).</div></div></div>
+  </div>
+</section>
+
+<!-- 10 STATUS / NEXT -->
+<section class="slide" id="sLast">
+  <div class="explain">
+    <button type="button" class="ex-btn"><span class="exi">i</span>in depth</button>
+    <div class="ex-panel">
+      <div class="ex-h">In depth — where this stands</div>
+      <p><b>Most of the system is real, tested code</b> in <code>foreman/</code>: the perceive→decide→act loop, blackboard coordination, the SQLite ledger (tasks · runs · events), the bounded review loop, git-worktree isolation, PR prep, analytics, and the web UI (<code>foreman web</code>) — <b>15 offline tests</b>, runnable with <code>python -m foreman demo</code>.</p>
+      <p>The one remaining wire is <code>LLMPolicy</code> putting Claude in the decision seat on jobagent's <i>real</i> test suite — it needs a key, so it isn't part of the offline tests.</p>
+    </div>
+  </div>
+  <p class="close-say reveal">Maximum leverage on the code.<br>A human on the merge.<br><b>Build to that line.</b></p>
+  <div class="close-next reveal">
+    <div><div class="k">System</div><div class="v" style="color:var(--green)">Built · 15 tests pass</div></div>
+    <div><div class="k">Foundation</div><div class="v cool">Messages API + tool use</div></div>
+    <div><div class="k">Truth signal</div><div class="v">tests green, not vibes</div></div>
+    <div><div class="k">Next step</div><div class="v cool">Wire the LLM policy</div></div>
+  </div>
+  <div class="wm" style="font-style:normal;">⏚</div>
+</section>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const counter=document.getElementById('counter');
+const prog=document.getElementById('prog');
+const dotsWrap=document.getElementById('dots');
+const total=slides.length;
+slides.forEach((s,i)=>{const b=document.createElement('button');b.setAttribute('aria-label','slide '+(i+1));b.onclick=()=>s.scrollIntoView({behavior:'smooth'});dotsWrap.appendChild(b);});
+const dots=[...dotsWrap.children];
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');const i=slides.indexOf(e.target);counter.textContent=String(i+1).padStart(2,'0')+' / '+String(total).padStart(2,'0');dots.forEach((d,j)=>d.classList.toggle('on',j===i));}});},{threshold:.5});
+slides.forEach(s=>io.observe(s));
+addEventListener('scroll',()=>{const h=document.documentElement;prog.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';},{passive:true});
+function current(){const c=innerHeight/2;return slides.findIndex(s=>{const r=s.getBoundingClientRect();return r.top<=c&&r.bottom>c;});}
+addEventListener('keydown',e=>{const i=current();if(i<0)return;if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();slides[Math.min(i+1,total-1)].scrollIntoView({behavior:'smooth'});}if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();slides[Math.max(i-1,0)].scrollIntoView({behavior:'smooth'});}});
+</script>
+</body>
+</html>
