@@ -37,6 +37,7 @@ and `claude-agent-sdk`.
 python3 -m venv .venv --system-site-packages
 .venv/bin/pip install -e .            # core
 .venv/bin/pip install -e '.[llm,dev]' # + Claude scoring/agent loop + pytest
+pip install -r requirements.txt
 ```
 
 Then either use the `jobagent` script (installed by `pip install -e .`) or
