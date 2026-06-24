@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foreman — run it locally</title>
+<style>
+:root{
+  --paper:#f3f0e9; --paper2:#ece8dd; --card:#fbfaf6;
+  --ink:#17150f; --ink2:#3a372e; --mut:#8d877a; --mut2:#b3ad9e;
+  --line:#d9d4c6; --line2:#cac4b2;
+  --cool:#2f4a78; --cool-soft:rgba(47,74,120,.08);
+  --warm:#b5481f; --warm-soft:rgba(181,72,31,.08);
+  --green:#3f6b3a; --red:#a33a2a;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-snap-type:y mandatory;scroll-behavior:smooth;height:100%;}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+
+.chrome{position:fixed;z-index:50;font-family:var(--mono);font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);}
+.chrome.tl{top:26px;left:34px;}
+.chrome.tr{top:26px;right:34px;}
+.chrome .brand{color:var(--ink);font-weight:600;}
+.chrome .brand b{color:var(--warm);}
+.progress{position:fixed;left:0;top:0;height:2px;background:var(--ink);width:0;z-index:60;transition:width .15s linear;}
+.dots{position:fixed;right:28px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:13px;}
+.dots button{appearance:none;border:none;background:none;cursor:pointer;width:11px;height:11px;display:flex;align-items:center;justify-content:center;padding:0;}
+.dots button::after{content:'';width:8px;height:8px;border-radius:50%;border:1px solid var(--mut2);transition:.25s;}
+.dots button.on::after{background:var(--ink);border-color:var(--ink);transform:scale(1.25);}
+@media(max-width:780px){.dots{display:none;}.chrome{font-size:.6rem;}.chrome.tl{left:18px;}.chrome.tr{right:18px;}}
+
+.slide{min-height:100vh;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:8vh 6.5vw 7vh;position:relative;overflow:hidden;}
+.kick{font-family:var(--mono);font-size:.82rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:1rem;margin-bottom:1.8rem;}
+.kick::before{content:'';width:42px;height:1px;background:var(--line2);}
+.kick b{color:var(--cool);font-weight:600;}
+h2{font-size:clamp(2.4rem,5vw,4rem);font-weight:600;letter-spacing:-.025em;line-height:1.07;}
+.lede{font-size:1.16rem;color:var(--ink2);max-width:54ch;line-height:1.7;margin-top:1.4rem;}
+.lede .q{font-family:var(--mono);font-size:.92rem;color:var(--cool);}
+.lede b{color:var(--ink);font-weight:600;}
+.wm{position:absolute;font-family:var(--serif);font-size:32vh;line-height:1;color:var(--ink);opacity:.035;right:5vw;bottom:-4vh;pointer-events:none;user-select:none;font-style:italic;}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+.slide.in .reveal{opacity:1;transform:none;}
+.slide.in .reveal:nth-child(2){transition-delay:.07s;}
+.slide.in .reveal:nth-child(3){transition-delay:.14s;}
+.slide.in .reveal:nth-child(4){transition-delay:.21s;}
+.slide.in .reveal:nth-child(5){transition-delay:.28s;}
+.slide.in .reveal:nth-child(6){transition-delay:.35s;}
+
+/* status badge */
+.badge{display:inline-flex;align-items:center;gap:.55em;font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--green);border:1px solid rgba(63,107,58,.4);background:rgba(63,107,58,.08);border-radius:100px;padding:.45em 1em;}
+.badge .d{width:7px;height:7px;border-radius:50%;background:var(--green);}
+
+/* title */
+#s1{justify-content:space-between;padding-top:13vh;padding-bottom:8vh;}
+.title-top{font-family:var(--mono);font-size:.84rem;letter-spacing:.22em;text-transform:uppercase;color:var(--mut);}
+.title-main .lockup{font-size:clamp(3.6rem,12vw,10.5rem);font-weight:600;letter-spacing:-.045em;line-height:.92;}
+.title-main .say{font-family:var(--serif);font-style:italic;font-size:clamp(1.6rem,3.6vw,2.8rem);color:var(--ink2);margin-top:1.6rem;letter-spacing:-.01em;max-width:30ch;line-height:1.3;}
+.title-foot{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;font-family:var(--mono);font-size:.82rem;letter-spacing:.08em;color:var(--mut);text-transform:uppercase;}
+.title-foot .r{display:flex;gap:1.6rem;flex-wrap:wrap;}
+
+/* split */
+.split{display:grid;grid-template-columns:1fr 1px 1fr;margin-top:1.8rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.split .col{padding:2.2rem 2rem;}
+.split .rule{background:var(--line);}
+.split .tag{font-family:var(--mono);font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;}
+.split .tag .sq{width:11px;height:11px;border-radius:2px;}
+.col.cool .tag{color:var(--cool);} .col.cool .sq{background:var(--cool);}
+.col.warm .tag{color:var(--warm);} .col.warm .sq{background:var(--warm);}
+.split h3{font-size:1.7rem;font-weight:600;letter-spacing:-.02em;margin-bottom:.7rem;}
+.split .li{font-size:.98rem;color:var(--ink2);line-height:1.75;padding-left:1.3rem;position:relative;margin-bottom:.5rem;}
+.split .li::before{content:'›';position:absolute;left:0;color:inherit;opacity:.6;font-family:var(--mono);}
+.col.cool .li::before{color:var(--cool);} .col.warm .li::before{color:var(--warm);}
+.split code{font-family:var(--mono);font-size:.84rem;color:var(--cool);}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-top:2rem;}
+.cards.three{grid-template-columns:repeat(3,1fr);}
+.cardx{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.4rem 1.4rem;}
+.cardx.cool{border-top:3px solid var(--cool);} .cardx.warm{border-top:3px solid var(--warm);}
+.cardx .ct{font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:.6rem;}
+.cardx.cool .ct{color:var(--cool);} .cardx.warm .ct{color:var(--warm);}
+.cardx h3{font-size:1.1rem;font-weight:600;letter-spacing:-.01em;margin-bottom:.4rem;}
+.cardx p{font-size:.85rem;color:var(--mut);line-height:1.55;}
+.cardx p code{font-family:var(--mono);font-size:.78rem;color:var(--cool);}
+
+/* numbered steps */
+.phases{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin-top:2rem;}
+.ph{display:flex;gap:1rem;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem 1.2rem;}
+.ph .pn{font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--cool);line-height:1;flex-shrink:0;width:1.4em;}
+.ph.gate{border-color:rgba(181,72,31,.35);} .ph.gate .pn{color:var(--warm);}
+.ph .pt{font-size:.95rem;font-weight:600;margin-bottom:.2rem;}
+.ph .pd{font-size:.78rem;color:var(--mut);line-height:1.5;}
+
+/* command block */
+.cmd{margin-top:1.5rem;background:#16140f;border-radius:13px;padding:1.15rem 1.4rem;font-family:var(--mono);font-size:.84rem;line-height:1.95;color:#d8d2c4;overflow-x:auto;box-shadow:0 24px 60px -34px rgba(23,21,15,.5);max-width:74ch;}
+.cmd .l{white-space:pre;}
+.cmd .p{color:#6e6a5d;user-select:none;}
+.cmd .c{color:#8fb0e0;}
+.cmd .o{color:#8d877a;}
+.cmd .g{color:#86b97f;}
+.cmd .w{color:#e0a06a;}
+.cmd b{color:#d8b46a;font-weight:600;}
+
+/* bullets */
+.bullets{margin-top:1.4rem;list-style:none;display:flex;flex-direction:column;gap:.65rem;max-width:62ch;}
+.bullets li{padding-left:1.5rem;position:relative;font-size:1.02rem;color:var(--ink2);line-height:1.6;}
+.bullets li::before{content:'›';position:absolute;left:0;color:var(--cool);font-family:var(--mono);}
+.bullets code{font-family:var(--mono);font-size:.85rem;color:var(--cool);}
+.bullets b{color:var(--ink);font-weight:600;}
+
+/* callout */
+.callout{margin-top:1.5rem;border-left:3px solid var(--warm);background:var(--warm-soft);padding:1rem 1.3rem;border-radius:0 10px 10px 0;font-size:.98rem;color:var(--ink2);line-height:1.62;max-width:64ch;}
+.callout.cool{border-color:var(--cool);background:var(--cool-soft);}
+.callout b{color:var(--ink);font-weight:600;}
+.callout code{font-family:var(--mono);font-size:.84rem;color:var(--cool);}
+
+/* tool / gotcha table */
+.tools{margin-top:2rem;border-top:1px solid var(--line);}
+.trow{display:grid;grid-template-columns:300px 1fr;gap:1.6rem;align-items:baseline;padding:1.05rem .2rem;border-bottom:1px solid var(--line);}
+.trow .tn{font-family:var(--mono);font-size:.88rem;color:var(--warm);}
+.trow .td{font-size:.92rem;color:var(--ink2);line-height:1.55;}
+.trow .td code{font-family:var(--mono);font-size:.82rem;color:var(--cool);}
+
+/* two-way launch row */
+.ways{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.8rem;}
+.way{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.3rem 1.4rem;}
+.way .wt{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--cool);margin-bottom:.55rem;}
+.way h3{font-size:1.05rem;font-weight:600;margin-bottom:.35rem;letter-spacing:-.01em;}
+.way p{font-size:.85rem;color:var(--mut);line-height:1.55;}
+.way code{font-family:var(--mono);font-size:.82rem;color:var(--ink);background:var(--paper2);padding:.12em .45em;border-radius:5px;}
+
+/* closing */
+#sLast{justify-content:center;}
+.close-say{font-family:var(--serif);font-size:clamp(2rem,4.6vw,3.6rem);line-height:1.3;letter-spacing:-.015em;max-width:24ch;}
+.close-say b{color:var(--warm);font-weight:600;}
+.close-next{margin-top:2.4rem;border-top:1px solid var(--line);padding-top:1.6rem;display:flex;gap:3rem;flex-wrap:wrap;}
+.close-next div .k{font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:.45rem;}
+.close-next div .v{font-size:1.05rem;font-weight:600;letter-spacing:-.01em;}
+.close-next div .v.cool{color:var(--cool);} .close-next div .v.warm{color:var(--warm);}
+.close-next div .v code{font-family:var(--mono);font-size:.92rem;}
+
+@media(max-width:780px){
+  .slide{padding:13vh 7vw 9vh;}
+  .split,.cards,.cards.three,.phases,.ways{grid-template-columns:1fr;}
+  .split .rule{display:none;}
+  .split .col{border-bottom:1px solid var(--line);padding:1.6rem 0;}
+  .trow{grid-template-columns:1fr;gap:.3rem;}
+  .wm{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="prog"></div>
+<div class="chrome tl"><span class="brand"><b>fore</b>man</span> &nbsp;·&nbsp; local guide</div>
+<div class="chrome tr" id="counter">01 / 13</div>
+<div class="dots" id="dots"></div>
+
+<!-- 1 TITLE -->
+<section class="slide" id="s1">
+  <div class="title-top reveal">Operator's guide · run it for real</div>
+  <div class="title-main">
+    <div class="lockup reveal">Run it<br>locally.</div>
+    <div class="say reveal">The deployed site shows the interface.<br>Your machine does the work.</div>
+  </div>
+  <div class="title-foot reveal">
+    <div>Setup · about 5 minutes</div>
+    <div class="r"><span>Real Claude runs</span><span>Worktree isolation</span><span>You merge</span></div>
+  </div>
+  <div class="wm" style="font-style:normal;">⌥</div>
+</section>
+
+<!-- 2 WHY LOCAL -->
+<section class="slide" id="s2">
+  <div class="kick reveal"><b>why local</b></div>
+  <h2 class="reveal">Vercel shows it.<br>Your machine runs it.</h2>
+  <p class="lede reveal">The hosted deployment at <span class="q">/foreman</span> is a <b>view-only tour</b> — serverless has no long-lived worker, no git, and no persistent disk. The actual multi-agent engine needs all three. Locally, you get the real system.</p>
+  <div class="cards reveal">
+    <div class="cardx cool"><div class="ct">real seat</div><h3>Claude decides</h3><p>The implementer &amp; reviewer run on <code>claude-opus-4-8</code> — not a scripted stub.</p></div>
+    <div class="cardx cool"><div class="ct">blast radius</div><h3>Git worktree</h3><p>Each task gets its own branch + working tree. A bad run is <code>git worktree remove</code>.</p></div>
+    <div class="cardx cool"><div class="ct">on the record</div><h3>SQLite ledger</h3><p>Tasks · runs · events persist on disk and survive across sessions.</p></div>
+    <div class="cardx cool"><div class="ct">truth signal</div><h3>Your real tests</h3><p>Green means <em>your</em> suite passed — the one thing the model can't talk past.</p></div>
+  </div>
+</section>
+
+<!-- 3 PREREQS -->
+<section class="slide" id="s3">
+  <div class="kick reveal"><b>before you start</b></div>
+  <h2 class="reveal">Four things to have ready.</h2>
+  <div class="cards reveal">
+    <div class="cardx"><div class="ct">runtime</div><h3>Python 3.10+</h3><p>A recent CPython. A virtualenv keeps it clean.</p></div>
+    <div class="cardx"><div class="ct">target</div><h3>A git repo</h3><p>The project Foreman will develop in. Worktree isolation needs it to be a real repo.</p></div>
+    <div class="cardx"><div class="ct">credentials</div><h3>An API key</h3><p><code>ANTHROPIC_API_KEY</code> for Claude in the decision seat.</p></div>
+    <div class="cardx"><div class="ct">the gate</div><h3>A test command</h3><p>The objective truth signal, e.g. <code>pytest -q</code>. This is what "done" means.</p></div>
+  </div>
+</section>
+
+<!-- 4 STEP 1 INSTALL -->
+<section class="slide" id="s4">
+  <div class="kick reveal">step <b>01</b> — install</div>
+  <h2 class="reveal">Clone, venv, install.</h2>
+  <div class="cmd reveal">
+<div class="l"><span class="p">$ </span><span class="c">git clone &lt;your-fork&gt; resume_agent &amp;&amp; cd resume_agent</span></div>
+<div class="l"><span class="p">$ </span><span class="c">python3 -m venv .venv &amp;&amp; source .venv/bin/activate</span></div>
+<div class="l"><span class="p">$ </span><span class="c">pip install -e <b>'.[web,llm]'</b></span></div>
+  </div>
+  <ul class="bullets reveal">
+    <li><b>web</b> → the browser control panel (<code>starlette</code> + <code>uvicorn</code>).</li>
+    <li><b>llm</b> → the <code>anthropic</code> SDK that puts Claude in the seat. (Foreman itself only needs <code>anthropic</code> from this extra.)</li>
+  </ul>
+</section>
+
+<!-- 5 STEP 2 KEY -->
+<section class="slide" id="s5">
+  <div class="kick reveal">step <b>02</b> — credentials</div>
+  <h2 class="reveal">Give it a key.</h2>
+  <div class="cmd reveal">
+<div class="l"><span class="p">$ </span><span class="c">export ANTHROPIC_API_KEY=<b>"sk-ant-..."</b></span></div>
+<div class="l"><span class="o"># …or drop it in .env (gitignored) — same effect</span></div>
+  </div>
+  <p class="lede reveal">Foreman's <span class="q">LLMPolicy</span> constructs <code style="font-family:var(--mono);color:var(--cool)">anthropic.Anthropic()</code>, which reads the key straight from the environment. No key yet? You can still drive the whole loop offline with <b>--policy mock</b> — free, no network (next slide).</p>
+</section>
+
+<!-- 6 STEP 3 LAUNCH -->
+<section class="slide" id="s6">
+  <div class="kick reveal">step <b>03</b> — launch</div>
+  <h2 class="reveal">Open the control panel.</h2>
+  <div class="ways reveal">
+    <div class="way"><div class="wt">no terminal</div><h3>Double-click <code>Foreman.command</code></h3><p>In Finder. It starts the server and opens your browser for you.</p></div>
+    <div class="way"><div class="wt">from a shell</div><h3>Run the web command</h3><p>Same thing, with logs in front of you.</p></div>
+  </div>
+  <div class="cmd reveal">
+<div class="l"><span class="p">$ </span><span class="c">python -m foreman web</span></div>
+<div class="l"><span class="o">Foreman control panel: </span><span class="g">http://127.0.0.1:8011</span></div>
+  </div>
+</section>
+
+<!-- 7 STEP 4 SMOKE TEST -->
+<section class="slide" id="s7">
+  <div class="kick reveal">step <b>04</b> — smoke test</div>
+  <h2 class="reveal">Prove the loop — free.</h2>
+  <p class="lede reveal">Before spending a token, run the offline sample: a planted bug (<code style="font-family:var(--mono);color:var(--cool)">add()</code> subtracts) and a failing check. A deterministic policy drives the full <b>plan → implement → test → review → pr_ready</b> path — no key, no cost.</p>
+  <div class="cmd reveal">
+<div class="l"><span class="p">$ </span><span class="c">python -m foreman demo</span></div>
+<div class="l"><span class="o">tests passed : </span><span class="g">True</span></div>
+<div class="l"><span class="o">review       : </span><span class="g">approve</span></div>
+<div class="l"><span class="o">final status : </span><span class="g">pr_ready</span><span class="o">   &gt;&gt;&gt; a human would now review + merge.</span></div>
+  </div>
+  <p class="lede reveal">Or click <b>"Run the sample task"</b> on the dashboard and watch it advance live.</p>
+</section>
+
+<!-- 8 STEP 5 REAL RUN -->
+<section class="slide" id="s8">
+  <div class="kick reveal">step <b>05</b> — a real run</div>
+  <h2 class="reveal">Point Claude at real code.</h2>
+  <div class="ways reveal">
+    <div class="way"><div class="wt">in the browser</div><h3>New run → a project folder</h3><p>Pick <em>"A project folder on this computer"</em>, paste the path, choose <em>Claude</em> + a model, and run.</p></div>
+    <div class="way"><div class="wt">from a shell</div><h3>One command</h3><p>The same run, scriptable. The flags below are the whole contract.</p></div>
+  </div>
+  <div class="cmd reveal">
+<div class="l"><span class="p">$ </span><span class="c">python -m foreman run \</span></div>
+<div class="l"><span class="c">    --title <b>"Fix flaky retry in client.py"</b> \</span></div>
+<div class="l"><span class="c">    --repo <b>/path/to/your/git/repo</b> \</span></div>
+<div class="l"><span class="c">    --policy <b>llm</b> --model <b>claude-opus-4-8</b> \</span></div>
+<div class="l"><span class="c">    --test-cmd <b>"pytest -q"</b></span></div>
+  </div>
+  <div class="callout reveal">Two non-negotiables: the <b>--repo must be a git repo</b> (that's the worktree's blast radius), and <b>--test-cmd must be your real truth signal</b>. Omit it and Foreman falls back to <code>python check.py</code> — fine for the demo, wrong for your project.</div>
+</section>
+
+<!-- 9 WHAT HAPPENS -->
+<section class="slide" id="s9">
+  <div class="kick reveal"><b>under the hood</b></div>
+  <h2 class="reveal">Plan. Isolate.<br>Iterate. Review.</h2>
+  <ul class="bullets reveal">
+    <li><b>Orchestrator</b> (plain Python) turns the task into work and opens a git worktree on <code>foreman/task-N</code>.</li>
+    <li><b>Implementer</b> (Claude) reads files, edits code, and runs your tests — looping <b>red → fix → green</b>.</li>
+    <li><b>Reviewer</b> (fresh-context Claude) reads the diff and returns <code>approve</code> or <code>request_changes</code> — which routes back to the implementer.</li>
+    <li>Green + approved → <b>pr_ready</b>, committed to the branch. Watch every step live in the UI (it auto-refreshes).</li>
+  </ul>
+  <div class="callout cool reveal">The implementer's tools are <code>read_file · edit_file · run_tests</code>; the reviewer's are <code>read_file · submit_review</code>. There is <b>no merge or push tool</b> — the irreversible step simply isn't in reach.</div>
+</section>
+
+<!-- 10 THE HUMAN GATE -->
+<section class="slide" id="s10">
+  <div class="kick reveal"><b>the one human step</b></div>
+  <h2 class="reveal">You review.<br>You merge.</h2>
+  <div class="split reveal">
+    <div class="col cool">
+      <div class="tag"><span class="sq"></span>Foreman did</div>
+      <h3>Parked a clean PR</h3>
+      <div class="li">Wrote the change on <code>foreman/task-N</code></div>
+      <div class="li">Drove your test suite to green</div>
+      <div class="li">Reviewed its own diff, fresh context</div>
+      <div class="li">Marked it <code>pr_ready</code> — and stopped</div>
+    </div>
+    <div class="rule"></div>
+    <div class="col warm">
+      <div class="tag"><span class="sq"></span>You do</div>
+      <h3>The irreversible step</h3>
+      <div class="li">Open the <b>Review queue</b></div>
+      <div class="li">Read the diff, tests, and verdict</div>
+      <div class="li">Click <b>Merge (I approve)</b> — records it</div>
+      <div class="li">Then actually land the branch ↓</div>
+    </div>
+  </div>
+  <div class="cmd reveal">
+<div class="l"><span class="p">$ </span><span class="c">git checkout main &amp;&amp; git merge <b>foreman/task-3</b></span></div>
+<div class="l"><span class="o"># the branch is already waiting in your repo</span></div>
+  </div>
+  <div class="callout reveal">The <b>Merge</b> button records that <em>you</em> approved — Foreman never runs <code>git merge</code> or <code>git push</code>. That capability does not exist in its tool set, by design.</div>
+</section>
+
+<!-- 11 INSPECT -->
+<section class="slide" id="s11">
+  <div class="kick reveal"><b>audit trail</b></div>
+  <h2 class="reveal">Every run is on the record.</h2>
+  <p class="lede reveal">One SQLite file is the whole ledger — <b>tasks · runs · events</b> (append-only). Every tool call, test result, and verdict is auditable after the fact. The Stats page turns it into the numbers that matter.</p>
+  <div class="cmd reveal">
+<div class="l"><span class="p">$ </span><span class="c">python -m foreman tasks</span><span class="o">     # status of every task</span></div>
+<div class="l"><span class="p">$ </span><span class="c">python -m foreman stats</span><span class="o">     # success % · avg turns · cost $ · human-touch</span></div>
+<div class="l"><span class="p">$ </span><span class="c">sqlite3 data/foreman/foreman.sqlite3 '.tables'</span></div>
+  </div>
+  <p class="lede reveal">Or just open <span class="q">/stats</span> and <span class="q">/runs</span> in the control panel.</p>
+</section>
+
+<!-- 12 TROUBLESHOOTING / CLOSE -->
+<section class="slide" id="s12">
+  <div class="kick reveal"><b>if a run parks itself</b></div>
+  <h2 class="reveal">When it stalls.</h2>
+  <div class="tools reveal">
+    <div class="trow"><div class="tn">needs_human · "anthropic SDK…"</div><div class="td">Install the extra and set the key: <code>pip install -e '.[web,llm]'</code> + <code>export ANTHROPIC_API_KEY=…</code></div></div>
+    <div class="trow"><div class="tn">tests never go green</div><div class="td">Your <code>--test-cmd</code> must actually pass in that repo (deps installed). Open the task page to read the diff and the failure.</div></div>
+    <div class="trow"><div class="tn">no diff · "not a git repo"</div><div class="td"><code>--repo</code> must point at a real git repo — that's what the worktree branches from.</div></div>
+    <div class="trow"><div class="tn">stops mid-run</div><div class="td">Bounded by <code>max_turns</code> + a token budget — it parks as <code>needs_human</code> rather than spinning forever.</div></div>
+  </div>
+  <div class="badge reveal" style="margin-top:1.8rem;"><span class="d"></span>15 offline tests pass · runs locally today</div>
+</section>
+
+<!-- CLOSING -->
+<section class="slide" id="sLast">
+  <p class="close-say reveal">Maximum leverage on the code.<br>A human on the merge.<br><b>Run it to that line.</b></p>
+  <div class="close-next reveal">
+    <div><div class="k">Launch</div><div class="v cool"><code>python -m foreman web</code></div></div>
+    <div><div class="k">Smoke test</div><div class="v"><code>foreman demo</code></div></div>
+    <div><div class="k">Real run</div><div class="v warm"><code>--policy llm --repo …</code></div></div>
+    <div><div class="k">Architecture deck</div><div class="v cool">foreman-presentation.html</div></div>
+  </div>
+  <div class="wm" style="font-style:normal;">⏚</div>
+</section>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const counter=document.getElementById('counter');
+const prog=document.getElementById('prog');
+const dotsWrap=document.getElementById('dots');
+const total=slides.length;
+slides.forEach((s,i)=>{const b=document.createElement('button');b.setAttribute('aria-label','slide '+(i+1));b.onclick=()=>s.scrollIntoView({behavior:'smooth'});dotsWrap.appendChild(b);});
+const dots=[...dotsWrap.children];
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');const i=slides.indexOf(e.target);counter.textContent=String(i+1).padStart(2,'0')+' / '+String(total).padStart(2,'0');dots.forEach((d,j)=>d.classList.toggle('on',j===i));}});},{threshold:.5});
+slides.forEach(s=>io.observe(s));
+addEventListener('scroll',()=>{const h=document.documentElement;prog.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';},{passive:true});
+function current(){const c=innerHeight/2;return slides.findIndex(s=>{const r=s.getBoundingClientRect();return r.top<=c&&r.bottom>c;});}
+addEventListener('keydown',e=>{const i=current();if(i<0)return;if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();slides[Math.min(i+1,total-1)].scrollIntoView({behavior:'smooth'});}if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();slides[Math.max(i-1,0)].scrollIntoView({behavior:'smooth'});}});
+</script>
+</body>
+</html>
