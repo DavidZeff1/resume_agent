@@ -1,22 +1,5 @@
-# Core pipeline (required) — these run the entire recoverable pipeline offline.
+openai>=1.30
 httpx>=0.27
-PyYAML>=6.0
-Jinja2>=3.1
-python-docx>=1.1
-beautifulsoup4>=4.12
-lxml>=5.0
-
-# Hosted deployment (Vercel) — installed by Vercel's Python runtime so the web
-# UI and a remote (Turso/libSQL) database work in a serverless environment.
-# For LOCAL dev you do NOT need these here; use `pip install -e '.[web]'`.
-starlette>=0.37
-python-multipart>=0.0.9
-libsql-experimental>=0.0.30; python_version < "3.13"   # Turso client; wheels: CPython ≤3.12 (skipped elsewhere so installs never fail)
-
-# Optional — LLM-backed scoring & the Agent SDK loop.
-# The pipeline runs without these (a deterministic HeuristicScorer is the fallback).
-# anthropic>=0.40
-# claude-agent-sdk>=0.1
-
-# Dev / test
+# optional, for `.env` loading and tests:
+# python-dotenv>=1.0
 # pytest>=8.0

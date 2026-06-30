@@ -3,35 +3,24 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jobagent"
+name = "tiny-agent"
 version = "0.1.0"
-description = "Local autonomous job-application preparation agent (human submits)."
+description = "A tiny, provider-agnostic LLM agent: a model in a loop that calls tools. Free by default (Groq / local Ollama)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "httpx>=0.27",
-    "PyYAML>=6.0",
-    "Jinja2>=3.1",
-    "python-docx>=1.1",
-    "beautifulsoup4>=4.12",
-    "lxml>=5.0",
+    "openai>=1.30",   # OpenAI-compatible client; works with Groq, Ollama, Cerebras, ...
+    "httpx>=0.27",    # used by the web tools
 ]
 
 [project.optional-dependencies]
-# LLM-backed scoring + the Agent SDK loop (the pipeline runs without these).
-llm = ["anthropic>=0.40", "claude-agent-sdk>=0.1"]
 dev = ["pytest>=8.0", "python-dotenv>=1.0"]
-# Local web UI (`jobagent web`). The CLI works fully without these.
-web = ["starlette>=0.37", "uvicorn>=0.27", "python-multipart>=0.0.9"]
 
 [project.scripts]
-jobagent = "jobagent.cli:main"
+agent = "agent.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["jobagent*"]
-
-[tool.setuptools.package-data]
-jobagent = ["schema.sql", "web/templates/*.html"]
+include = ["agent*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
